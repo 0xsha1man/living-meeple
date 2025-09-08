@@ -1,14 +1,14 @@
 // server.ts
+import { GoogleGenAI, Modality } from '@google/genai';
+import cors from 'cors';
 import 'dotenv/config';
 import express from 'express';
-import cors from 'cors';
-import { GoogleGenAI, HarmCategory, HarmBlockThreshold, Modality } from '@google/genai';
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' })); // Allow larger image payloads
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 const apiKey = process.env.GEMINI_API_KEY;
 
 if (!apiKey) {
@@ -17,7 +17,7 @@ if (!apiKey) {
 
 const ai = new GoogleGenAI({ apiKey });
 
-// Endpoint to generate the initial battle plan
+// Endpoint to generate the initial battle plan (Text generation - no changes needed)
 app.post('/api/generate-plan', async (req, res) => {
     const { inputText, systemInstruction, schema, safetySettings } = req.body;
     try {
@@ -33,30 +33,37 @@ app.post('/api/generate-plan', async (req, res) => {
     }
 });
 
-// Endpoint to generate a single base asset image
+// Endpoint to generate a single base asset image (Initial Image Generation)
 app.post('/api/generate-image', async (req, res) => {
     const { prompt } = req.body;
     try {
-        const imageResponse = await ai.models.generateImages({
-            model: 'imagen-4.0-generate-001',
-            prompt: prompt,
-            config: { numberOfImages: 1, outputMimeType: 'image/jpeg', aspectRatio: '16:9' },
+        // CORRECTED: Use generateContent for gemini-2.5-flash-image-preview
+        const imageResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image-preview', // Correct Model
+            contents: { parts: [{ text: prompt }] },
+            config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
         });
-        const base64Image = imageResponse.generatedImages[0].image.imageBytes;
-        const mimeType = imageResponse.generatedImages[0].image.mimeType;
-        res.json({ base64: base64Image, mimeType: mimeType });
+
+        const imagePart = imageResponse.candidates[0].content.parts.find(part => part.inlineData);
+        if (imagePart) {
+            const base64Image = imagePart.inlineData.data;
+            const mimeType = imagePart.inlineData.mimeType;
+            res.json({ base64: base64Image, mimeType: mimeType });
+        } else {
+            throw new Error("No image was generated for the asset.");
+        }
     } catch (error) {
         console.error("Error in /api/generate-image:", error);
         res.status(500).json({ error: error.message });
     }
 });
 
-// Endpoint to edit an image and generate a composite frame
+// Endpoint to edit an image and generate a composite frame (Image Editing - was already correct)
 app.post('/api/generate-frame', async (req, res) => {
     const { base64, mimeType, prompt } = req.body;
     try {
         const editResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-image-preview',
+            model: 'gemini-2.5-flash-image-preview', // Correct Model
             contents: { parts: [{ inlineData: { data: base64, mimeType: mimeType } }, { text: prompt }] },
             config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
         });
@@ -76,3 +83,4 @@ app.post('/api/generate-frame', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`✅ Living Meeple server is running on http://localhost:${PORT}`);
 });
+

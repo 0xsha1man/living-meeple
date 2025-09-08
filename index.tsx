@@ -56,10 +56,10 @@ interface StoredStory {
 const systemInstruction = `You are an AI Storyboard Director for "Living Meeple." Your goal is to create a simple, clean, kid-friendly visualization of historical text. Focus on narrative comprehension, not tactical precision.
 
 **AI Rules:**
-1.  **Define Assets:** First, define the necessary 'faction_meeple' and 'Map' assets.
+1.  **Define Assets:** First, define the necessary 'faction_meeple' and 'Map' assets. The 'asset_type' for these MUST be simple, e.g., "Union Meeple", "Tactical Map".
 2.  **Create Storyboard:** Break the text into a sequence of storyboard frames.
 3.  **Frame Rules:**
-    * For each frame, you MUST specify a 'base_asset' to start with (e.g., "Tactical Map").
+    * For each frame, the 'base_asset' field MUST EXACTLY MATCH one of the 'asset_type' values defined in required_assets (e.g., "Tactical Map"). DO NOT use the description.
     * For each frame, you MUST provide the 'source_text' from the original paragraph.
     * Composite prompts should be simple instructions, like placing meeples or adding a single movement arrow. Keep it simple and clear.
 
@@ -96,7 +96,6 @@ interface WebAppProps {
   onRestart: () => void;
   onSelectStory: (story: StoredStory) => void;
   isLoading: boolean;
-  // Add assets and frames for real-time gallery updates
   realTimeAssets: { [key: string]: GeneratedAsset };
   realTimeFrames: GeneratedAsset[][];
 }
@@ -369,8 +368,7 @@ function App() {
           url: `data:${mimeType};base64,${base64}`,
           base64, mimeType, caption: `${asset.asset_type} (Base Asset)`
         };
-        // REAL-TIME UPDATE
-        setRealTimeAssets(prev => ({ ...prev, ...assets }));
+        setRealTimeAssets(prev => ({ ...prev, [asset.asset_type]: assets[asset.asset_type] }));
       }
       addLog("All base assets generated.");
 
@@ -406,11 +404,12 @@ function App() {
             caption: `Page ${i + 1} - Step: ${p.step}`
           };
           compositeImages.push(currentImage);
-          // REAL-TIME UPDATE
-          const updatedFrames = [...allFrames];
-          if (!updatedFrames[i]) updatedFrames[i] = [];
-          updatedFrames[i] = [...compositeImages];
-          setRealTimeFrames(updatedFrames);
+          setRealTimeFrames(prev => {
+            const newFrames = [...prev];
+            if (!newFrames[i]) newFrames[i] = [];
+            newFrames[i] = [...compositeImages];
+            return newFrames;
+          });
         }
         allFrames.push(compositeImages);
       }
@@ -503,4 +502,3 @@ const safetySettings = [{ category: HarmCategory.HARM_CATEGORY_HARASSMENT, thres
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App />);
-

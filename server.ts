@@ -3,6 +3,7 @@ import { GoogleGenAI, Modality, Part } from '@google/genai';
 import cors from 'cors';
 import 'dotenv/config';
 import express from 'express';
+import { battle_plan_schema } from './schema/battle_plan';
 
 const app = express();
 app.use(cors());
@@ -19,12 +20,12 @@ const ai = new GoogleGenAI({ apiKey });
 
 // Endpoint to generate the initial battle plan
 app.post('/api/generate-plan', async (req, res) => {
-    const { inputText, systemInstruction, schema, safetySettings } = req.body;
+    const { inputText, systemInstruction, safetySettings } = req.body;
     try {
         const result = await ai.models.generateContent({
             model: 'gemini-1.5-flash',
             contents: [{ parts: [{ text: inputText }] }],
-            config: { systemInstruction, responseMimeType: 'application/json', responseSchema: schema, safetySettings },
+            config: { systemInstruction, responseMimeType: 'application/json', responseSchema: battle_plan_schema, safetySettings },
         });
 
         // **GUARD CLAUSE**

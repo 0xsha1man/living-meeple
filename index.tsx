@@ -122,6 +122,74 @@ function App() {
     setDebugLog(prev => [...prev, { timestamp, message }]);
   };
 
+  const generateBattlePlan = async (inputText: string) => {
+    addLog("Sending text to server for planning...");
+    const serverUrl = 'http://localhost:3001';
+    const planResponse = await fetch(`${serverUrl}/api/generate-plan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ inputText, SYSTEM_INSTRUCTION, safetySettings }),
+    });
+    addLog(`Plan generation response status: ${planResponse.status}`);
+    if (!planResponse.ok) {
+      const errorBody = await planResponse.text();
+      throw new Error(`Plan generation failed: ${errorBody}`);
+    }
+
+    const battlePlan: BattlePlan = await planResponse.json();
+    addLog(`Plan received for: ${battlePlan.battle_identification.name}`);
+    return battlePlan;
+  };
+
+  const generateBaseAssets = async (battlePlan: BattlePlan) => {
+    const serverUrl = 'http://localhost:3001';
+    const assets: { [key: string]: GeneratedAsset } = {};
+    for (const asset of battlePlan.required_assets) {
+      addLog(`Generating base asset: ${asset.asset_type}`);
+      const imageResponse = await fetch(`${serverUrl}/api/generate-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: asset.description }),
+      });
+      if (!imageResponse.ok) {
+        const errorBody = await imageResponse.text();
+        throw new Error(`Failed to generate asset ${asset.asset_type}: ${errorBody}`);
+      }
+      const { base64, mimeType } = await imageResponse.json();
+      assets[asset.asset_type] = {
+        url: `data:${mimeType};base64,${base64}`,
+        base64, mimeType, caption: `${asset.asset_type} (Base Asset)`
+      };
+      setRealTimeAssets(prev => ({ ...prev, [asset.asset_type]: assets[asset.asset_type] }));
+    }
+    addLog("All base assets generated.");
+    return assets;
+  };
+
+  // const generateStoryboardFrames = async (battlePlan: BattlePlan, assets: { [key: string]: GeneratedAsset }) => {
+  //   const serverUrl = 'http://localhost:3001';
+  //   const allFrames: GeneratedAsset[][] = [];
+  //   for (let i = 0; i < battlePlan.storyboard.length; i++) {
+  //     const frame = battlePlan.storyboard[i];
+  //     addLog(`Compositing page ${i + 1} of ${battlePlan.storyboard.length}...`);
+
+  //     const compositeImages: GeneratedAsset[] = [];
+  //     let currentImage: GeneratedAsset | null = assets[frame.base_asset];
+
+  //     if (!currentImage) {
+  //       throw new Error(`Base asset "${frame.base_asset}" not found for page ${i + 1}.`);
+  //     }
+
+  //     for (const [stepIndex, p] of frame.composite_prompts.entries()) {
+  //       if (p.prompt.toLowerCase().includes('skip')) continue;
+
+  //       addLog(` -> Step ${stepIndex + 1}: ${p.step}`);
+  //     }
+  //     allFrames.push(compositeImages);
+  //   }
+  //   return allFrames;
+  // };
+
   const handleCreateStory = async (inputText: string) => {
     setIsLoading(true);
     setView('webapp');
@@ -132,61 +200,13 @@ function App() {
 
     addLog("Starting story generation...");
 
+    let battlePlan: BattlePlan;
+    let assets: { [key: string]: GeneratedAsset };
+
     try {
-      const serverUrl = 'http://localhost:3001';
-
-      addLog("Sending text to server for planning...");
-      const planResponse = await fetch(`${serverUrl}/api/generate-plan`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inputText, SYSTEM_INSTRUCTION, safetySettings }),
-      });
-      if (!planResponse.ok) {
-        const errorBody = await planResponse.text();
-        throw new Error(`Plan generation failed: ${errorBody}`);
-      }
-      const battlePlan: BattlePlan = await planResponse.json();
-      addLog(`Plan received for: ${battlePlan.battle_identification.name}`);
-
-      const assets: { [key: string]: GeneratedAsset } = {};
-      for (const asset of battlePlan.required_assets) {
-        addLog(`Generating base asset: ${asset.asset_type}`);
-        const imageResponse = await fetch(`${serverUrl}/api/generate-image`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: asset.description }),
-        });
-        if (!imageResponse.ok) {
-          const errorBody = await imageResponse.text();
-          throw new Error(`Failed to generate asset ${asset.asset_type}: ${errorBody}`);
-        }
-        const { base64, mimeType } = await imageResponse.json();
-        assets[asset.asset_type] = {
-          url: `data:${mimeType};base64,${base64}`,
-          base64, mimeType, caption: `${asset.asset_type} (Base Asset)`
-        };
-        setRealTimeAssets(prev => ({ ...prev, [asset.asset_type]: assets[asset.asset_type] }));
-      }
-      addLog("All base assets generated.");
-
-      // --- STORYBOARD GENERATION COMMENTED OUT ---
+      battlePlan = await generateBattlePlan(inputText);
+      assets = await generateBaseAssets(battlePlan);
       /*
-      const allFrames: GeneratedAsset[][] = [];
-      for (let i = 0; i < battlePlan.storyboard.length; i++) {
-        const frame = battlePlan.storyboard[i];
-        addLog(`Compositing page ${i + 1} of ${battlePlan.storyboard.length}...`);
-
-        const compositeImages: GeneratedAsset[] = [];
-        let currentImage: GeneratedAsset | null = assets[frame.base_asset];
-        
-        if (!currentImage) {
-            throw new Error(`Base asset "${frame.base_asset}" not found for page ${i + 1}.`);
-        }
-
-        for (const [stepIndex, p] of frame.composite_prompts.entries()) {
-          if (p.prompt.toLowerCase().includes('skip')) continue;
-          
-          addLog(` -> Step ${stepIndex + 1}: ${p.step}`);
           const editResponse = await fetch(`${serverUrl}/api/generate-frame`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -210,8 +230,8 @@ function App() {
               return newFrames;
           });
         }
-        allFrames.push(compositeImages);
       }
+
       */
 
       const newStory: StoredStory = {

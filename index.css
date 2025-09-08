@@ -246,6 +246,20 @@ textarea::placeholder {
   text-align: center;
 }
 
+.start-over-button {
+  margin-top: auto;
+  /* Pushes to the bottom */
+  border-top: 1px solid var(--border-color);
+  padding-top: 1rem !important;
+  color: var(--secondary-color) !important;
+  background-color: transparent !important;
+}
+
+.start-over-button:hover {
+  color: white !important;
+  background-color: var(--secondary-color) !important;
+}
+
 .webapp-content {
   background-color: var(--surface-color);
   padding: 2.5rem;
@@ -303,8 +317,7 @@ textarea::placeholder {
   letter-spacing: 0.5px;
 }
 
-.detail-card p,
-.detail-card ul {
+.detail-card p {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -349,10 +362,6 @@ textarea::placeholder {
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
   cursor: pointer;
-}
-
-.storybook-controls button.primary-button {
-  background-color: var(--success-color);
 }
 
 .storybook-controls button:disabled {

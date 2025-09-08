@@ -18,13 +18,11 @@ interface GeneratedAsset {
 interface StoryboardFrame {
   frame: number;
   description: string;
-  base_asset: string; // Explicitly define which base asset to use
+  base_asset: string;
   composite_prompts: {
     step: string;
     prompt: string;
   }[];
-  sfx_suggestions: string[];
-  narration_text: string;
   source_text: string;
 }
 
@@ -54,21 +52,20 @@ interface StoredStory {
 }
 
 
-// --- REFINED AI SYSTEM INSTRUCTION ---
-const systemInstruction = `You are an AI Storyboard Director for "Living Meeple," a tool that visualizes historical text with a simple, clean, and kid-friendly aesthetic suitable for a children's history book or a high-quality wooden board game. Your primary goal is narrative comprehension, not tactical precision.
+// --- REFINED AI SYSTEM INSTRUCTION (FINAL VERSION) ---
+const systemInstruction = `You are an AI Storyboard Director for "Living Meeple." Your goal is narrative comprehension, not tactical precision, using a simple, clean, and kid-friendly aesthetic.
 
-**AI Update Rules:**
-1.  **Meeple Consistency:** You MUST first define unique \`faction_meeple\` assets for each faction. In the storyboard's composite prompts, you MUST reference these exact assets for placement (e.g., "Place the 'Union Meeple' asset"). Do not describe new meeples in every frame.
-2.  **Map Scoping:** Regional maps must be tightly scoped to the immediate area of conflict (e.g., a few states), not the entire country.
+**AI Rules (Simplified for Final Submission):**
+1.  **Meeple Consistency:** You MUST first define unique \`faction_meeple\` assets. In the storyboard's composite prompts, you MUST reference these exact assets (e.g., "Place the 'Union Meeple' asset").
+2.  **Map Scoping:** Regional maps must be tightly scoped to the immediate area of conflict (e.g., a few states).
 3.  **Visual Subtlety & Clarity:**
-    * Represent troop numbers with density. A larger force should be a denser cluster of meeples; a smaller force should be more spread out.
+    * Represent troop numbers with density: a larger force is a denser cluster of meeples; a smaller force is more spread out.
     * Movement arrows must be subtle, semi-transparent (20% opacity), and consistently styled as simple block arrows.
-    * The "Fun FX" step must be used minimally. Avoid clutter. Use speech bubbles ONLY for critical moments like a charge or retreat.
-    * Add text labels ONLY for major, named tactical movements (e.g., "Pickett's Charge"). Do not add a title to every frame.
+    * **Crucially, use ONLY ONE "Fun FX" element per frame.** Choose the single most impactful one (e.g., one speech bubble OR one text label). If none are needed, the prompt must be "skip". This is to ensure a clean, uncluttered visual.
 4.  **Source Text Attribution:** For each storyboard frame, you MUST include the specific sentence(s) from the original text that the frame is visualizing in the 'source_text' field.
 5.  **Base Asset Definition:** For each storyboard frame, you MUST specify which asset to use as the starting point in the 'base_asset' field (e.g., "Tactical Map" or "Regional Map").
 
-**Output Schema:** You will analyze the user's text and generate a JSON object based on the provided schema. This object will define the required assets and a multi-frame storyboard with composite image prompts, narration, SFX suggestions, and source text attribution for each frame.`;
+**Output Schema:** Generate a JSON object based on the provided schema. Omit any audio-related fields.`;
 
 const BATTLE_PLACEHOLDER = `Beginning in June 1863, General Lee began to move the Army of Northern Virginia north through Maryland. The Union army—the Army of the Potomac—traveled north to end up alongside the Confederate forces. The two armies met at Gettysburg, Pennsylvania, where Confederate forces had gone to secure supplies. The resulting battle lasted three days, July 1–3 and remains the biggest and costliest battle ever fought in North America. The climax of the Battle of Gettysburg occurred on the third day. In the morning, after a fight lasting several hours, Union forces fought back a Confederate attack on Culp’s Hill, one of the Union’s defensive positions. To regain a perceived advantage and secure victory, Lee ordered a frontal assault, known as Pickett’s Charge (for Confederate general George Pickett), against the center of the Union lines on Cemetery Ridge. Approximately fifteen thousand Confederate soldiers took part, and more than half lost their lives, as they advanced nearly a mile across an open field to attack the entrenched Union forces. In all, more than a third of the Army of Northern Virginia had been lost, and on the evening of July 4, Lee and his men slipped away in the rain. General George Meade did not pursue them. Both sides suffered staggering losses. Total casualties numbered around twenty-three thousand for the Union and some twenty-eight thousand among the Confederates. With its defeats at Gettysburg and Vicksburg, both on the same day, the Confederacy lost its momentum. The tide had turned in favor of the Union in both the east and the west.`;
 
@@ -80,7 +77,6 @@ interface LandingPageProps {
 
 interface StorybookViewProps {
   story: StoredStory | null;
-  onRestart: () => void;
 }
 
 interface ImageGalleryViewProps {
@@ -167,11 +163,10 @@ const LandingPage: FC<LandingPageProps> = ({ onStoryCreate, isLoading }) => {
 };
 
 // --- COMPONENT: StorybookView ---
-const StorybookView: FC<StorybookViewProps> = ({ story, onRestart }) => {
+const StorybookView: FC<StorybookViewProps> = ({ story }) => {
   const [pageIndex, setPageIndex] = useState(0);
 
   useEffect(() => {
-    // Reset page index when a new story is loaded
     setPageIndex(0);
   }, [story]);
 
@@ -181,8 +176,6 @@ const StorybookView: FC<StorybookViewProps> = ({ story, onRestart }) => {
   const currentPageData = plan.storyboard[pageIndex];
   const currentPageImages = frames[pageIndex];
   const finalImageForPage = currentPageImages?.[currentPageImages.length - 1];
-
-  const isLastPage = pageIndex === plan.storyboard.length - 1;
 
   return (
     <div className="storybook-view">
@@ -198,16 +191,6 @@ const StorybookView: FC<StorybookViewProps> = ({ story, onRestart }) => {
           <div className="detail-card story-text">
             <p>{currentPageData.description}</p>
           </div>
-          <div className="detail-card narration-text">
-            <h4><i className="fas fa-microphone-alt"></i> Narration Script</h4>
-            <p>{currentPageData.narration_text || "(No narration for this page)"}</p>
-          </div>
-          <div className="detail-card sfx-list">
-            <h4><i className="fas fa-volume-up"></i> Sound Effects</h4>
-            <ul>
-              {currentPageData.sfx_suggestions.map((sfx, i) => <li key={i}>{sfx}</li>)}
-            </ul>
-          </div>
           <div className="detail-card admin-view">
             <h4><i className="fas fa-quote-left"></i> Source Text</h4>
             <blockquote>"{currentPageData.source_text}"</blockquote>
@@ -219,13 +202,9 @@ const StorybookView: FC<StorybookViewProps> = ({ story, onRestart }) => {
           <i className="fas fa-chevron-left"></i> Previous Page
         </button>
         <span>Page {pageIndex + 1} of {plan.storyboard.length}</span>
-        {isLastPage ? (
-          <button onClick={onRestart} className="primary-button">Create a New Story</button>
-        ) : (
-          <button onClick={() => setPageIndex(p => Math.min(plan.storyboard.length - 1, p + 1))}>
-            Next Page <i className="fas fa-chevron-right"></i>
-          </button>
-        )}
+        <button onClick={() => setPageIndex(p => Math.min(plan.storyboard.length - 1, p + 1))} disabled={pageIndex === plan.storyboard.length - 1}>
+          Next Page <i className="fas fa-chevron-right"></i>
+        </button>
       </div>
     </div>
   );
@@ -259,9 +238,13 @@ const ImageGalleryView: FC<ImageGalleryViewProps> = ({ story }) => {
 const StoryCollectionView: FC<StoryCollectionViewProps> = ({ onSelectStory }) => {
   const [stories, setStories] = useState<StoredStory[]>([]);
   useEffect(() => {
-    const stored = localStorage.getItem('livingMeepleStories');
-    if (stored) {
-      setStories(JSON.parse(stored));
+    try {
+      const stored = localStorage.getItem('livingMeepleStories');
+      if (stored) {
+        setStories(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error("Could not parse stories from localStorage", e);
     }
   }, []);
 
@@ -299,7 +282,7 @@ const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, isLoadi
   useEffect(() => {
     if (isLoading) {
       setActiveTab('debug');
-    } else if (story) { // Only switch to storybook if a story exists
+    } else if (story) {
       setActiveTab('storybook');
     }
   }, [isLoading, story]);
@@ -311,9 +294,10 @@ const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, isLoadi
         <button onClick={() => setActiveTab('gallery')} className={activeTab === 'gallery' ? 'active' : ''}><i className="fas fa-images"></i> Image Gallery</button>
         <button onClick={() => setActiveTab('collection')} className={activeTab === 'collection' ? 'active' : ''}><i className="fas fa-archive"></i> My Stories</button>
         <button onClick={() => setActiveTab('debug')} className={activeTab === 'debug' ? 'active' : ''}><i className="fas fa-terminal"></i> Debug Log</button>
+        <button onClick={onRestart} className="start-over-button"><i className="fas fa-undo"></i> Start Over</button>
       </nav>
       <main className="webapp-content">
-        {activeTab === 'storybook' && <StorybookView story={story} onRestart={onRestart} />}
+        {activeTab === 'storybook' && <StorybookView story={story} />}
         {activeTab === 'gallery' && <ImageGalleryView story={story} />}
         {activeTab === 'collection' && <StoryCollectionView onSelectStory={onSelectStory} />}
         {activeTab === 'debug' && <DebugLogView log={log} />}
@@ -338,7 +322,7 @@ function App() {
     setIsLoading(true);
     setView('webapp');
     setDebugLog([]);
-    setCurrentStory(null); // Clear previous story
+    setCurrentStory(null);
 
     addLog("Starting story generation...");
 
@@ -413,12 +397,10 @@ function App() {
         frames: allFrames
       };
 
-      // Create a slim version for localStorage to avoid quota errors
       const storyForCollection = {
         id: newStory.id,
         name: newStory.name,
         plan: newStory.plan,
-        // We intentionally leave out the large 'assets' and 'frames' arrays
       };
 
       const stored = localStorage.getItem('livingMeepleStories') || '[]';
@@ -426,10 +408,10 @@ function App() {
       if (collection.length >= 10) {
         collection.shift();
       }
-      collection.push(storyForCollection); // Push the slim version
+      collection.push(storyForCollection);
       localStorage.setItem('livingMeepleStories', JSON.stringify(collection));
 
-      setCurrentStory(newStory); 
+      setCurrentStory(newStory);
       addLog("Story generation complete!");
 
     } catch (err: any) {
@@ -441,8 +423,11 @@ function App() {
   };
 
   const handleSelectStory = (story: StoredStory) => {
-    setCurrentStory(story);
-    setView('webapp');
+    // This function will now only load the plan, not the images
+    // For a full implementation, you'd need to re-generate images based on the plan
+    alert("Viewing stored stories is a future feature! For now, you can see them listed.");
+    // setCurrentStory(story);
+    // setView('webapp');
   };
 
   const handleRestart = () => {
@@ -463,7 +448,7 @@ const schema = {
   type: Type.OBJECT,
   properties: {
     battle_identification: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, context: { type: Type.STRING } } },
-    factions: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, meeple_color: { type: Type.STRING }, meeple_asset_name: { type: Type.STRING, description: "Unique asset name for this faction's meeple, e.g., 'Union Meeple'." } } } },
+    factions: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, meeple_color: { type: Type.STRING }, meeple_asset_name: { type: Type.STRING } } } },
     required_assets: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { asset_type: { type: Type.STRING }, description: { type: Type.STRING } } } },
     storyboard: {
       type: Type.ARRAY,
@@ -472,14 +457,12 @@ const schema = {
         properties: {
           frame: { type: Type.INTEGER },
           description: { type: Type.STRING },
-          base_asset: { type: Type.STRING, description: "The asset_type of the base map to start this frame's composition (e.g., 'Tactical Map')." },
+          base_asset: { type: Type.STRING },
           composite_prompts: {
             type: Type.ARRAY,
             items: { type: Type.OBJECT, properties: { step: { type: Type.STRING }, prompt: { type: Type.STRING } } }
           },
-          sfx_suggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
-          narration_text: { type: Type.STRING },
-          source_text: { type: Type.STRING, description: "The exact sentence(s) from the original text used as a reference for this frame." }
+          source_text: { type: Type.STRING }
         }
       }
     }

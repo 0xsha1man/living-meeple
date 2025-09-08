@@ -3,6 +3,7 @@ import { GoogleGenAI, Modality, Part } from '@google/genai';
 import cors from 'cors';
 import 'dotenv/config';
 import express from 'express';
+import { MODEL_GENERATE_IMAGE, MODEL_GENERATE_PLAN } from './config';
 import { battle_plan_schema } from './schema/battle_plan';
 
 const app = express();
@@ -23,7 +24,7 @@ app.post('/api/generate-plan', async (req, res) => {
     const { inputText, systemInstruction, safetySettings } = req.body;
     try {
         const result = await ai.models.generateContent({
-            model: 'gemini-1.5-flash',
+            model: MODEL_GENERATE_PLAN,
             contents: [{ parts: [{ text: inputText }] }],
             config: { systemInstruction, responseMimeType: 'application/json', responseSchema: battle_plan_schema, safetySettings },
         });
@@ -44,7 +45,7 @@ app.post('/api/generate-image', async (req, res) => {
     const { prompt } = req.body;
     try {
         const result = await ai.models.generateContent({
-            model: 'gemini-1.5-flash-image-preview',
+            model: MODEL_GENERATE_IMAGE,
             contents: [{ parts: [{ text: prompt }] }],
             config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
         });
@@ -68,7 +69,7 @@ app.post('/api/generate-frame', async (req, res) => {
     const { base64, mimeType, prompt } = req.body;
     try {
         const result = await ai.models.generateContent({
-            model: 'gemini-1.5-flash-image-preview',
+            model: MODEL_GENERATE_IMAGE,
             contents: [{ parts: [{ inlineData: { data: base64, mimeType: mimeType } }, { text: prompt }] }],
             config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
         });

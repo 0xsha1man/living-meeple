@@ -52,20 +52,18 @@ interface StoredStory {
 }
 
 
-// --- REFINED AI SYSTEM INSTRUCTION (FINAL VERSION) ---
-const systemInstruction = `You are an AI Storyboard Director for "Living Meeple." Your goal is narrative comprehension, not tactical precision, using a simple, clean, and kid-friendly aesthetic.
+// --- REFINED AI SYSTEM INSTRUCTION (FINAL SUBMISSION VERSION) ---
+const systemInstruction = `You are an AI Storyboard Director for "Living Meeple." Your goal is to create a simple, clean, kid-friendly visualization of historical text. Focus on narrative comprehension, not tactical precision.
 
-**AI Rules (Simplified for Final Submission):**
-1.  **Meeple Consistency:** You MUST first define unique \`faction_meeple\` assets. In the storyboard's composite prompts, you MUST reference these exact assets (e.g., "Place the 'Union Meeple' asset").
-2.  **Map Scoping:** Regional maps must be tightly scoped to the immediate area of conflict (e.g., a few states).
-3.  **Visual Subtlety & Clarity:**
-    * Represent troop numbers with density: a larger force is a denser cluster of meeples; a smaller force is more spread out.
-    * Movement arrows must be subtle, semi-transparent (20% opacity), and consistently styled as simple block arrows.
-    * **Crucially, use ONLY ONE "Fun FX" element per frame.** Choose the single most impactful one (e.g., one speech bubble OR one text label). If none are needed, the prompt must be "skip". This is to ensure a clean, uncluttered visual.
-4.  **Source Text Attribution:** For each storyboard frame, you MUST include the specific sentence(s) from the original text that the frame is visualizing in the 'source_text' field.
-5.  **Base Asset Definition:** For each storyboard frame, you MUST specify which asset to use as the starting point in the 'base_asset' field (e.g., "Tactical Map" or "Regional Map").
+**AI Rules:**
+1.  **Define Assets:** First, define the necessary 'faction_meeple' and 'Map' assets.
+2.  **Create Storyboard:** Break the text into a sequence of storyboard frames.
+3.  **Frame Rules:**
+    * For each frame, you MUST specify a 'base_asset' to start with (e.g., "Tactical Map").
+    * For each frame, you MUST provide the 'source_text' from the original paragraph.
+    * Composite prompts should be simple instructions, like placing meeples or adding a single movement arrow. Keep it simple and clear.
 
-**Output Schema:** Generate a JSON object based on the provided schema. Omit any audio-related fields.`;
+**Output Schema:** Generate a JSON object based on the provided schema.`;
 
 const BATTLE_PLACEHOLDER = `Beginning in June 1863, General Lee began to move the Army of Northern Virginia north through Maryland. The Union army—the Army of the Potomac—traveled north to end up alongside the Confederate forces. The two armies met at Gettysburg, Pennsylvania, where Confederate forces had gone to secure supplies. The resulting battle lasted three days, July 1–3 and remains the biggest and costliest battle ever fought in North America. The climax of the Battle of Gettysburg occurred on the third day. In the morning, after a fight lasting several hours, Union forces fought back a Confederate attack on Culp’s Hill, one of the Union’s defensive positions. To regain a perceived advantage and secure victory, Lee ordered a frontal assault, known as Pickett’s Charge (for Confederate general George Pickett), against the center of the Union lines on Cemetery Ridge. Approximately fifteen thousand Confederate soldiers took part, and more than half lost their lives, as they advanced nearly a mile across an open field to attack the entrenched Union forces. In all, more than a third of the Army of Northern Virginia had been lost, and on the evening of July 4, Lee and his men slipped away in the rain. General George Meade did not pursue them. Both sides suffered staggering losses. Total casualties numbered around twenty-three thousand for the Union and some twenty-eight thousand among the Confederates. With its defeats at Gettysburg and Vicksburg, both on the same day, the Confederacy lost its momentum. The tide had turned in favor of the Union in both the east and the west.`;
 
@@ -80,7 +78,8 @@ interface StorybookViewProps {
 }
 
 interface ImageGalleryViewProps {
-  story: StoredStory | null;
+  assets: { [key: string]: GeneratedAsset };
+  frames: GeneratedAsset[][];
 }
 
 interface StoryCollectionViewProps {
@@ -97,6 +96,9 @@ interface WebAppProps {
   onRestart: () => void;
   onSelectStory: (story: StoredStory) => void;
   isLoading: boolean;
+  // Add assets and frames for real-time gallery updates
+  realTimeAssets: { [key: string]: GeneratedAsset };
+  realTimeFrames: GeneratedAsset[][];
 }
 
 
@@ -211,11 +213,13 @@ const StorybookView: FC<StorybookViewProps> = ({ story }) => {
 };
 
 // --- COMPONENT: ImageGalleryView ---
-const ImageGalleryView: FC<ImageGalleryViewProps> = ({ story }) => {
-  if (!story) return <div className="detail-card"><p>Your image gallery will appear here once a story is created.</p></div>;
+const ImageGalleryView: FC<ImageGalleryViewProps> = ({ assets, frames }) => {
+  if (Object.keys(assets).length === 0 && frames.length === 0) {
+    return <div className="detail-card"><p>Your image gallery will appear here as images are generated.</p></div>;
+  }
   const allImages = [
-    ...Object.values(story.assets),
-    ...story.frames.flat()
+    ...Object.values(assets),
+    ...frames.flat()
   ];
 
   return (
@@ -276,7 +280,7 @@ const DebugLogView: FC<DebugLogViewProps> = ({ log }) => (
 
 
 // --- COMPONENT: WebApp ---
-const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, isLoading }) => {
+const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, isLoading, realTimeAssets, realTimeFrames }) => {
   const [activeTab, setActiveTab] = useState('storybook');
 
   useEffect(() => {
@@ -298,7 +302,7 @@ const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, isLoadi
       </nav>
       <main className="webapp-content">
         {activeTab === 'storybook' && <StorybookView story={story} />}
-        {activeTab === 'gallery' && <ImageGalleryView story={story} />}
+        {activeTab === 'gallery' && <ImageGalleryView assets={realTimeAssets} frames={realTimeFrames} />}
         {activeTab === 'collection' && <StoryCollectionView onSelectStory={onSelectStory} />}
         {activeTab === 'debug' && <DebugLogView log={log} />}
       </main>
@@ -313,6 +317,10 @@ function App() {
   const [currentStory, setCurrentStory] = useState<StoredStory | null>(null);
   const [debugLog, setDebugLog] = useState<{ timestamp: string, message: string }[]>([]);
 
+  // State for real-time updates
+  const [realTimeAssets, setRealTimeAssets] = useState<{ [key: string]: GeneratedAsset }>({});
+  const [realTimeFrames, setRealTimeFrames] = useState<GeneratedAsset[][]>([]);
+
   const addLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
     setDebugLog(prev => [...prev, { timestamp, message }]);
@@ -323,6 +331,8 @@ function App() {
     setView('webapp');
     setDebugLog([]);
     setCurrentStory(null);
+    setRealTimeAssets({});
+    setRealTimeFrames([]);
 
     addLog("Starting story generation...");
 
@@ -335,7 +345,10 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ inputText, systemInstruction, schema, safetySettings }),
       });
-      if (!planResponse.ok) throw new Error(`Plan generation failed: ${await planResponse.text()}`);
+      if (!planResponse.ok) {
+        const errorBody = await planResponse.text();
+        throw new Error(`Plan generation failed: ${errorBody}`);
+      }
       const battlePlan: BattlePlan = await planResponse.json();
       addLog(`Plan received for: ${battlePlan.battle_identification.name}`);
 
@@ -347,12 +360,17 @@ function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt: asset.description }),
         });
-        if (!imageResponse.ok) throw new Error(`Failed to generate asset ${asset.asset_type}`);
+        if (!imageResponse.ok) {
+          const errorBody = await imageResponse.text();
+          throw new Error(`Failed to generate asset ${asset.asset_type}: ${errorBody}`);
+        }
         const { base64, mimeType } = await imageResponse.json();
         assets[asset.asset_type] = {
           url: `data:${mimeType};base64,${base64}`,
           base64, mimeType, caption: `${asset.asset_type} (Base Asset)`
         };
+        // REAL-TIME UPDATE
+        setRealTimeAssets(prev => ({ ...prev, ...assets }));
       }
       addLog("All base assets generated.");
 
@@ -377,7 +395,10 @@ function App() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ base64: currentImage.base64, mimeType: currentImage.mimeType, prompt: p.prompt }),
           });
-          if (!editResponse.ok) throw new Error(`Failed to generate frame step`);
+          if (!editResponse.ok) {
+            const errorBody = await editResponse.text();
+            throw new Error(`Failed to generate frame step: ${errorBody}`);
+          }
 
           const { base64, mimeType } = await editResponse.json();
           currentImage = {
@@ -385,6 +406,11 @@ function App() {
             caption: `Page ${i + 1} - Step: ${p.step}`
           };
           compositeImages.push(currentImage);
+          // REAL-TIME UPDATE
+          const updatedFrames = [...allFrames];
+          if (!updatedFrames[i]) updatedFrames[i] = [];
+          updatedFrames[i] = [...compositeImages];
+          setRealTimeFrames(updatedFrames);
         }
         allFrames.push(compositeImages);
       }
@@ -423,11 +449,7 @@ function App() {
   };
 
   const handleSelectStory = (story: StoredStory) => {
-    // This function will now only load the plan, not the images
-    // For a full implementation, you'd need to re-generate images based on the plan
-    alert("Viewing stored stories is a future feature! For now, you can see them listed.");
-    // setCurrentStory(story);
-    // setView('webapp');
+    alert("Reloading full stories from the collection is a feature for another day! For the hackathon, you can generate new stories or view the one you just created.");
   };
 
   const handleRestart = () => {
@@ -438,7 +460,15 @@ function App() {
   return (
     <div className="app-container">
       {view === 'landing' && <LandingPage onStoryCreate={handleCreateStory} isLoading={isLoading} />}
-      {view === 'webapp' && <WebApp story={currentStory} log={debugLog} onRestart={handleRestart} onSelectStory={handleSelectStory} isLoading={isLoading} />}
+      {view === 'webapp' && <WebApp
+        story={currentStory}
+        log={debugLog}
+        onRestart={handleRestart}
+        onSelectStory={handleSelectStory}
+        isLoading={isLoading}
+        realTimeAssets={realTimeAssets}
+        realTimeFrames={realTimeFrames}
+      />}
     </div>
   );
 }

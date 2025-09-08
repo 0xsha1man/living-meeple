@@ -90,5 +90,5 @@ app.post('/api/generate-frame', async (req, res) => {
 
 
 app.listen(PORT, () => {
-    console.log(`✅ Living Meeple server is running on http://localhost:${PORT}`);
+    console.log(`✅ Living Meeple server is running on ${process.env.VITE_SERVER_URL || `http://localhost:${PORT}`}`);
 });

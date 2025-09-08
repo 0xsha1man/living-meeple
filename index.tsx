@@ -107,6 +107,8 @@ const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, isLoadi
 };
 
 // --- MAIN APP COMPONENT ---
+const API_BASE_URL = 'http://localhost:3001';
+
 function App() {
   const [view, setView] = useState<'landing' | 'webapp'>('landing');
   const [isLoading, setIsLoading] = useState(false);
@@ -124,12 +126,13 @@ function App() {
 
   const generateBattlePlan = async (inputText: string) => {
     addLog("Sending text to server for planning...");
-    const serverUrl = 'http://localhost:3001';
-    const planResponse = await fetch(`${serverUrl}/api/generate-plan`, {
+    
+    const planResponse = await fetch(`${API_BASE_URL}/api/generate-plan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ inputText, SYSTEM_INSTRUCTION, safetySettings }),
     });
+
     addLog(`Plan generation response status: ${planResponse.status}`);
     if (!planResponse.ok) {
       const errorBody = await planResponse.text();
@@ -137,16 +140,17 @@ function App() {
     }
 
     const battlePlan: BattlePlan = await planResponse.json();
+    addLog(`Plan received: ${JSON.stringify(battlePlan, null, 2)}`);
     addLog(`Plan received for: ${battlePlan.battle_identification.name}`);
     return battlePlan;
   };
 
   const generateBaseAssets = async (battlePlan: BattlePlan) => {
-    const serverUrl = 'http://localhost:3001';
     const assets: { [key: string]: GeneratedAsset } = {};
+
     for (const asset of battlePlan.required_assets) {
       addLog(`Generating base asset: ${asset.asset_type}`);
-      const imageResponse = await fetch(`${serverUrl}/api/generate-image`, {
+      const imageResponse = await fetch(`${API_BASE_URL}/api/generate-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: asset.description }),
@@ -166,29 +170,52 @@ function App() {
     return assets;
   };
 
-  // const generateStoryboardFrames = async (battlePlan: BattlePlan, assets: { [key: string]: GeneratedAsset }) => {
-  //   const serverUrl = 'http://localhost:3001';
-  //   const allFrames: GeneratedAsset[][] = [];
-  //   for (let i = 0; i < battlePlan.storyboard.length; i++) {
-  //     const frame = battlePlan.storyboard[i];
-  //     addLog(`Compositing page ${i + 1} of ${battlePlan.storyboard.length}...`);
+  const generateStoryboardFrames = async (battlePlan: BattlePlan, assets: { [key: string]: GeneratedAsset }) => {
+    const allFrames: GeneratedAsset[][] = [];
 
-  //     const compositeImages: GeneratedAsset[] = [];
-  //     let currentImage: GeneratedAsset | null = assets[frame.base_asset];
+    for (let i = 0; i < battlePlan.storyboard.length; i++) {
+      const frame = battlePlan.storyboard[i];
+      addLog(`Compositing page ${i + 1} of ${battlePlan.storyboard.length}...`);
 
-  //     if (!currentImage) {
-  //       throw new Error(`Base asset "${frame.base_asset}" not found for page ${i + 1}.`);
-  //     }
+      const compositeImages: GeneratedAsset[] = [];
+      let currentImage: GeneratedAsset | null = assets[frame.base_asset];
 
-  //     for (const [stepIndex, p] of frame.composite_prompts.entries()) {
-  //       if (p.prompt.toLowerCase().includes('skip')) continue;
+      if (!currentImage) {
+        throw new Error(`Base asset "${frame.base_asset}" not found for page ${i + 1}.`);
+      }
 
-  //       addLog(` -> Step ${stepIndex + 1}: ${p.step}`);
-  //     }
-  //     allFrames.push(compositeImages);
-  //   }
-  //   return allFrames;
-  // };
+      for (const [stepIndex, p] of frame.composite_prompts.entries()) {
+        if (p.prompt.toLowerCase().includes('skip')) continue;
+
+        const editResponse = await fetch(`${API_BASE_URL}/api/generate-frame`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ base64: currentImage.base64, mimeType: currentImage.mimeType, prompt: p.prompt }),
+        });
+        if (!editResponse.ok) {
+          const errorBody = await editResponse.text();
+          throw new Error(`Failed to generate frame step: ${errorBody}`);
+        }
+
+        const { base64, mimeType } = await editResponse.json();
+        currentImage = {
+          base64, mimeType, url: `data:${mimeType};base64,${base64}`,
+          caption: `Page ${i + 1} - Step: ${p.step}`
+        };
+        compositeImages.push(currentImage);
+        setRealTimeFrames(prev => {
+          const newFrames = [...prev];
+          if (!newFrames[i]) newFrames[i] = [];
+          newFrames[i] = [...compositeImages];
+          return newFrames;
+        });
+
+        addLog(` -> Step ${stepIndex + 1}: ${p.step}`);
+      }
+      allFrames.push(compositeImages);
+    }
+    return allFrames;
+  };
 
   const handleCreateStory = async (inputText: string) => {
     setIsLoading(true);
@@ -205,45 +232,17 @@ function App() {
 
     try {
       battlePlan = await generateBattlePlan(inputText);
-      assets = await generateBaseAssets(battlePlan);
-      /*
-          const editResponse = await fetch(`${serverUrl}/api/generate-frame`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ base64: currentImage.base64, mimeType: currentImage.mimeType, prompt: p.prompt }),
-          });
-          if (!editResponse.ok) {
-              const errorBody = await editResponse.text();
-              throw new Error(`Failed to generate frame step: ${errorBody}`);
-          }
+      // assets = await generateBaseAssets(battlePlan);
 
-          const { base64, mimeType } = await editResponse.json();
-          currentImage = {
-            base64, mimeType, url: `data:${mimeType};base64,${base64}`,
-            caption: `Page ${i + 1} - Step: ${p.step}`
-          };
-          compositeImages.push(currentImage);
-          setRealTimeFrames(prev => {
-              const newFrames = [...prev];
-              if(!newFrames[i]) newFrames[i] = [];
-              newFrames[i] = [...compositeImages];
-              return newFrames;
-          });
-        }
-      }
+      // const newStory: StoredStory = {
+      //   id: new Date().toISOString(),
+      //   name: battlePlan.battle_identification.name,
+      //   plan: battlePlan, assets,
+      //   frames: [] // No frames generated yet
+      // };
 
-      */
-
-      const newStory: StoredStory = {
-        id: new Date().toISOString(),
-        name: battlePlan.battle_identification.name,
-        plan: battlePlan,
-        assets,
-        frames: [] // No frames generated yet
-      };
-
-      setCurrentStory(newStory);
-      addLog("Base asset generation complete! Storyboard generation is paused.");
+      // setCurrentStory(newStory);
+      // addLog("Base asset generation complete! Storyboard generation is paused.");
 
     } catch (err: any) {
       addLog(`ERROR: ${err.message}`);

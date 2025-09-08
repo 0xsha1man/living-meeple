@@ -14,11 +14,11 @@ export const battle_plan_schema = {
                 },
                 context: {
                     type: Type.STRING,
-                    description: "A single sentence describing the important context of the battle in history."
+                    description: "A single sentence describing the important context of the battle in history suitable for a children's history book."
                 },
                 narrative_summary: {
                     type: Type.STRING,
-                    description: "A 1-3 sentence summary of the battle answering WHO was involved, WHERE the battle was, and the final RESULT."
+                    description: "A 1-3 sentence summary of the battle answering WHO was involved, WHERE the battle was, and the final RESULT suitable for a children's history book."
                 },
             },
             required: ["name", "context", "narrative_summary"],
@@ -39,28 +39,34 @@ export const battle_plan_schema = {
                     },
                     meeple_asset_name: {
                         type: Type.STRING,
-                        description: "The asset or model name for this faction's game piece."
+                        description: "The asset name for this faction's game piece, in the format 'meeple_[color]' where [color] is the value of meeple_color (e.g., 'meeple_red').",
+                        pattern: "^meeple_[a-z]+$"
                     },
                 },
                 required: ["name", "meeple_color", "meeple_asset_name"],
             },
         },
-        required_assets: {
+        maps: {
             type: Type.ARRAY,
-            description: "List of visual assets needed to represent the battle.",
+            description: "An array of maps for the battle. A 'tactical' map is required. A 'regional' map is optional but recommended for context.",
             items: {
                 type: Type.OBJECT,
                 properties: {
-                    asset_type: {
+                    map_type: {
                         type: Type.STRING,
-                        description: "The category of the asset (e.g., 'map', 'terrain', 'structure')."
+                        description: "The type of map (e.g., 'tactical', 'regional')."
                     },
                     description: {
                         type: Type.STRING,
-                        description: "A detailed description for generating or finding the asset."
+                        description: "A detailed prompt for generating the map. For 'tactical' maps, describe the immediate battle area with key landmarks. For 'regional' maps, describe a zoomed-out view of the tactical map providing geographical context."
+                    },
+                    map_asset_name: {
+                        type: Type.STRING,
+                        description: "The asset name for this map, in the format '[map_type]_map' where [map_type] is the value of map_type (e.g., 'tactical_map').",
+                        pattern: "^(tactical|regional)_map$"
                     },
                 },
-                required: ["asset_type", "description"]
+                required: ["map_type", "map_asset_name", "description"]
             }
         },
         storyboard: {
@@ -108,5 +114,5 @@ export const battle_plan_schema = {
             },
         },
     },
-    required: ["battle_identification", "factions", "required_assets", "storyboard"],
+    required: ["battle_identification", "factions", "maps", "storyboard"],
 };

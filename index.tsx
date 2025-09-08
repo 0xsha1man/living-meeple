@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { HarmBlockThreshold, HarmCategory, Type } from '@google/genai';
-import React, { useState, useEffect, FC } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 
@@ -146,6 +146,15 @@ const LandingPage: FC<LandingPageProps> = ({ onStoryCreate }) => {
               <li><strong>Create Story:</strong> Let the AI plan and generate a visual storybook.</li>
               <li><strong>Explore:</strong> Watch history unfold, page by page!</li>
             </ol>
+          </div>
+          <div className="mascot-container">
+            <img src="images/mascot.png" alt="A friendly historian meeple reading a book" />
+          </div>
+          <div className="villager-container">
+            <img src="images/villager.png" alt="A friendly villager meeple" />
+          </div>
+          <div className="chef-container">
+            <img src="images/chef.png" alt="A friendly chef meeple" />
           </div>
         </div>
       </div>
@@ -416,7 +425,7 @@ function App() {
   };
 
   if (view === 'loading') {
-    return <div className="loading-fullscreen"><DebugLogView log={log} /></div>;
+    return <div className="loading-fullscreen"><DebugLogView log={debugLog} /></div>;
   }
 
   return (

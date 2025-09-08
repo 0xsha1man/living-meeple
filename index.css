@@ -9,6 +9,8 @@
   /* Peter River Blue */
   --secondary-color: #f1c40f;
   /* Sun Flower Yellow */
+  --accent-color: #e67e22;
+  /* Carrot Orange for contrast */
   --text-color: #ecf0f1;
   /* Clouds White */
   --text-muted-color: #bdc3c7;
@@ -89,6 +91,10 @@ textarea {
   resize: none;
 }
 
+textarea::placeholder {
+  color: #8a9ba8;
+}
+
 .form-actions {
   display: flex;
   justify-content: space-between;
@@ -105,6 +111,7 @@ textarea {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  padding: 0;
 }
 
 .example-link i {
@@ -128,6 +135,7 @@ textarea {
 .create-story-button:disabled {
   background-color: #555;
   cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .instructions.card {
@@ -165,7 +173,7 @@ textarea {
 /* --- WEB APP MODE --- */
 .webapp-container {
   display: grid;
-  grid-template-columns: 200px 1fr;
+  grid-template-columns: 220px 1fr;
   gap: 2rem;
   height: 90vh;
 }
@@ -190,9 +198,11 @@ textarea {
   cursor: pointer;
   font-family: var(--font-family);
   font-size: 1rem;
+  font-weight: 600;
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 .webapp-nav button.active,
@@ -229,6 +239,7 @@ textarea {
 
 .storybook-image-panel.card {
   padding: 1rem;
+  background-color: var(--bg-color);
 }
 
 .storybook-image-panel img {
@@ -250,10 +261,13 @@ textarea {
 
 .detail-card h4 {
   margin: 0 0 0.5rem 0;
-  color: var(--secondary-color);
+  color: var(--accent-color);
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .detail-card p,
@@ -268,9 +282,17 @@ textarea {
   border: 1px dashed var(--border-color);
 }
 
+.admin-view h4 {
+  color: var(--error-color);
+}
+
 .admin-view blockquote {
   margin: 0;
   font-style: italic;
+  font-size: 0.9em;
+  border-left: 3px solid var(--error-color);
+  padding-left: 10px;
+  color: var(--text-color);
 }
 
 .storybook-controls {
@@ -287,13 +309,29 @@ textarea {
   display: flex;
   gap: 0.5rem;
   align-items: center;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.storybook-controls button.primary-button {
+  background-color: var(--success-color);
+}
+
+.storybook-controls button:disabled {
+  background-color: #555;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* Other Views */
-.image-gallery-view h2,
-.story-collection-view h2,
-.debug-log-view h2 {
+.webapp-content h2 {
   color: var(--secondary-color);
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 0.5rem;
 }
 
 .gallery {
@@ -326,9 +364,16 @@ textarea {
 
 .story-card {
   background-color: var(--bg-color);
-  padding: 1rem;
+  padding: 1.5rem;
   border-radius: 8px;
   cursor: pointer;
+  border-left: 4px solid var(--primary-color);
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.story-card:hover {
+  transform: translateX(5px);
+  background-color: #3e5771;
 }
 
 .debug-log-view pre {
@@ -339,15 +384,18 @@ textarea {
   white-space: pre-wrap;
   word-break: break-all;
   font-family: monospace;
+  max-height: 60vh;
+  overflow-y: auto;
 }
 
 .loading-fullscreen {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.7);
   display: grid;
   place-items: center;
   padding: 2rem;
+  z-index: 1000;
 }
 
 .loading-fullscreen .debug-log-view {

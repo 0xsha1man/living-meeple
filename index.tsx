@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { HarmBlockThreshold, HarmCategory, Type } from '@google/genai';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, FC } from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 
@@ -70,8 +70,38 @@ const systemInstruction = `You are an AI Storyboard Director for "Living Meeple,
 
 const BATTLE_PLACEHOLDER = `Beginning in June 1863, General Lee began to move the Army of Northern Virginia north through Maryland. The Union army—the Army of the Potomac—traveled north to end up alongside the Confederate forces. The two armies met at Gettysburg, Pennsylvania, where Confederate forces had gone to secure supplies. The resulting battle lasted three days, July 1–3 and remains the biggest and costliest battle ever fought in North America. The climax of the Battle of Gettysburg occurred on the third day. In the morning, after a fight lasting several hours, Union forces fought back a Confederate attack on Culp’s Hill, one of the Union’s defensive positions. To regain a perceived advantage and secure victory, Lee ordered a frontal assault, known as Pickett’s Charge (for Confederate general George Pickett), against the center of the Union lines on Cemetery Ridge. Approximately fifteen thousand Confederate soldiers took part, and more than half lost their lives, as they advanced nearly a mile across an open field to attack the entrenched Union forces. In all, more than a third of the Army of Northern Virginia had been lost, and on the evening of July 4, Lee and his men slipped away in the rain. General George Meade did not pursue them. Both sides suffered staggering losses. Total casualties numbered around twenty-three thousand for the Union and some twenty-eight thousand among the Confederates. With its defeats at Gettysburg and Vicksburg, both on the same day, the Confederacy lost its momentum. The tide had turned in favor of the Union in both the east and the west.`;
 
+// --- COMPONENT PROPS INTERFACES ---
+interface LandingPageProps {
+  onStoryCreate: (inputText: string) => void;
+}
+
+interface StorybookViewProps {
+  story: StoredStory | null;
+  onRestart: () => void;
+}
+
+interface ImageGalleryViewProps {
+  story: StoredStory | null;
+}
+
+interface StoryCollectionViewProps {
+  onSelectStory: (story: StoredStory) => void;
+}
+
+interface DebugLogViewProps {
+  log: { timestamp: string, message: string }[];
+}
+
+interface WebAppProps {
+  story: StoredStory | null;
+  log: { timestamp: string, message: string }[];
+  onRestart: () => void;
+  onSelectStory: (story: StoredStory) => void;
+}
+
+
 // --- COMPONENT: LandingPage ---
-const LandingPage = ({ onStoryCreate }) => {
+const LandingPage: FC<LandingPageProps> = ({ onStoryCreate }) => {
   const [inputText, setInputText] = useState('');
 
   const handleInsertExample = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -128,7 +158,7 @@ const LandingPage = ({ onStoryCreate }) => {
 };
 
 // --- COMPONENT: StorybookView ---
-const StorybookView = ({ story, onRestart }) => {
+const StorybookView: FC<StorybookViewProps> = ({ story, onRestart }) => {
   const [pageIndex, setPageIndex] = useState(0);
   if (!story) return null;
 
@@ -187,7 +217,7 @@ const StorybookView = ({ story, onRestart }) => {
 };
 
 // --- COMPONENT: ImageGalleryView ---
-const ImageGalleryView = ({ story }) => {
+const ImageGalleryView: FC<ImageGalleryViewProps> = ({ story }) => {
   if (!story) return null;
   const allImages = [
     ...Object.values(story.assets),
@@ -211,7 +241,7 @@ const ImageGalleryView = ({ story }) => {
 };
 
 // --- COMPONENT: StoryCollectionView ---
-const StoryCollectionView = ({ onSelectStory }) => {
+const StoryCollectionView: FC<StoryCollectionViewProps> = ({ onSelectStory }) => {
   const [stories, setStories] = useState<StoredStory[]>([]);
   useEffect(() => {
     const stored = localStorage.getItem('livingMeepleStories');
@@ -236,7 +266,7 @@ const StoryCollectionView = ({ onSelectStory }) => {
 };
 
 // --- COMPONENT: DebugLogView ---
-const DebugLogView = ({ log }) => (
+const DebugLogView: FC<DebugLogViewProps> = ({ log }) => (
   <div className="debug-log-view">
     <h2><i className="fas fa-bug"></i> Debug Log</h2>
     <p>A real-time log of the generation process behind the scenes.</p>
@@ -248,7 +278,7 @@ const DebugLogView = ({ log }) => (
 
 
 // --- COMPONENT: WebApp ---
-const WebApp = ({ story, log, onRestart, onSelectStory }) => {
+const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory }) => {
   const [activeTab, setActiveTab] = useState('storybook');
 
   return (
@@ -386,7 +416,7 @@ function App() {
   };
 
   if (view === 'loading') {
-    return <div className="loading-fullscreen"><DebugLogView log={debugLog} /></div>;
+    return <div className="loading-fullscreen"><DebugLogView log={log} /></div>;
   }
 
   return (

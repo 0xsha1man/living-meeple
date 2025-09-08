@@ -1,25 +1,28 @@
 /* --- VARIABLES & BASE STYLES --- */
 :root {
   --font-family: 'Nunito', sans-serif;
-  --bg-color: #2c3e50;
-  /* Dark Slate Blue */
-  --surface-color: #34495e;
-  /* Wet Asphalt */
-  --primary-color: #3498db;
-  /* Peter River Blue */
-  --secondary-color: #f1c40f;
-  /* Sun Flower Yellow */
+
+  /* Color Palette inspired by the teal mascot */
+  --bg-color: #1a2a3a;
+  /* Deep, dark teal/blue */
+  --surface-color: #2c3e50;
+  /* Lighter slate blue */
+  --primary-color: #00a0a0;
+  /* Vibrant Teal from Mascot */
+  --secondary-color: #f39c12;
+  /* Warm Orange/Gold accent */
   --accent-color: #e67e22;
   /* Carrot Orange for contrast */
-  --text-color: #FFFFFF;
-  /* PURE White for max contrast */
-  --text-muted-color: #d2d5d6;
-  /* Lighter Silver for better contrast */
+  --text-color: #f0f4f8;
+  /* Off-white for readability */
+  --text-muted-color: #a0b4c8;
+  /* Lighter, muted blue-grey */
   --border-color: #4a627a;
-  --success-color: #2ecc71;
-  /* Emerald Green */
+  --success-color: #27ae60;
+  /* Greener success color */
   --error-color: #e74c3c;
   /* Alizarin Red */
+
   --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   --border-radius: 12px;
 }
@@ -34,7 +37,6 @@ body {
 
 p {
   line-height: 1.6;
-  /* Improved readability for paragraphs */
 }
 
 .app-container {
@@ -48,7 +50,6 @@ p {
   flex-direction: column;
   align-items: center;
   gap: 2.5rem;
-  /* Increased whitespace */
 }
 
 .main-title {
@@ -68,7 +69,6 @@ p {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2.5rem;
-  /* Increased whitespace */
   width: 100%;
 }
 
@@ -76,11 +76,9 @@ p {
 .right-panel {
   background-color: var(--surface-color);
   padding: 2.5rem;
-  /* Increased whitespace */
   border-radius: var(--border-radius);
   box-shadow: var(--card-shadow);
   border: 1px solid var(--border-color);
-  /* Added border for contrast */
   display: flex;
   flex-direction: column;
 }
@@ -112,7 +110,6 @@ textarea::placeholder {
   justify-content: space-between;
   align-items: center;
   margin-top: 1.5rem;
-  /* Increased whitespace */
 }
 
 .example-link {
@@ -157,7 +154,6 @@ textarea::placeholder {
   padding: 0;
   border: none;
   flex-grow: 1;
-  /* Allows it to take up space */
 }
 
 .instructions h2 {
@@ -182,36 +178,15 @@ textarea::placeholder {
 }
 
 .mascot-container {
-  position: absolute;
-  top: 100px;
-  left: 100px;
+  text-align: center;
+  margin-top: auto;
+  padding-top: 1rem;
 }
 
 .mascot-container img {
-  max-width: 150px;
+  max-width: 180px;
   height: auto;
-}
-
-.chef-container {
-  position: absolute;
-  bottom: 40px;
-  right: 180px;
-}
-
-.chef-container img {
-  max-width: 50px;
-  height: auto;
-}
-
-.villager-container {
-  position: absolute;
-  bottom: 40px;
-  right: 100px;
-}
-
-.villager-container img {
-  max-width: 50px;
-  height: auto;
+  filter: drop-shadow(0 5px 15px rgba(0, 0, 0, 0.3));
 }
 
 .footer {
@@ -227,9 +202,8 @@ textarea::placeholder {
 /* --- WEB APP MODE --- */
 .webapp-container {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 240px 1fr;
   gap: 2.5rem;
-  /* Increased whitespace */
   height: 90vh;
 }
 
@@ -248,9 +222,9 @@ textarea::placeholder {
   background: none;
   border: none;
   color: var(--text-muted-color);
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1.25rem;
   text-align: left;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   font-family: var(--font-family);
   font-size: 1rem;
@@ -275,7 +249,6 @@ textarea::placeholder {
 .webapp-content {
   background-color: var(--surface-color);
   padding: 2.5rem;
-  /* Increased whitespace */
   border-radius: var(--border-radius);
   box-shadow: var(--card-shadow);
   overflow-y: auto;
@@ -298,6 +271,7 @@ textarea::placeholder {
 .storybook-image-panel.card {
   padding: 1rem;
   background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
 }
 
 .storybook-image-panel img {
@@ -309,19 +283,17 @@ textarea::placeholder {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  /* Increased whitespace */
 }
 
 .detail-card {
   background-color: var(--bg-color);
   padding: 1.5rem;
-  /* Increased whitespace */
   border-radius: 8px;
+  border: 1px solid var(--border-color);
 }
 
 .detail-card h4 {
   margin: 0 0 0.75rem 0;
-  /* Increased whitespace */
   color: var(--accent-color);
   display: flex;
   align-items: center;
@@ -365,7 +337,6 @@ textarea::placeholder {
   background-color: var(--bg-color);
   border-radius: 8px;
   margin-top: 1rem;
-  /* Added whitespace */
 }
 
 .storybook-controls button {
@@ -395,16 +366,13 @@ textarea::placeholder {
   color: var(--secondary-color);
   border-bottom: 2px solid var(--border-color);
   padding-bottom: 0.75rem;
-  /* Increased whitespace */
   margin-bottom: 1.5rem;
-  /* Increased whitespace */
 }
 
 .gallery {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1.5rem;
-  /* Increased whitespace */
 }
 
 .gallery figure {
@@ -449,7 +417,7 @@ textarea::placeholder {
 }
 
 .debug-log-view pre {
-  background-color: #222;
+  background-color: #1e2b38;
   color: #0f0;
   padding: 1rem;
   border-radius: 8px;
@@ -458,19 +426,4 @@ textarea::placeholder {
   font-family: monospace;
   max-height: 60vh;
   overflow-y: auto;
-}
-
-.loading-fullscreen {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: grid;
-  place-items: center;
-  padding: 2rem;
-  z-index: 1000;
-}
-
-.loading-fullscreen .debug-log-view {
-  max-width: 800px;
-  width: 100%;
 }

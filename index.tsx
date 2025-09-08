@@ -18,6 +18,7 @@ interface GeneratedAsset {
 interface StoryboardFrame {
   frame: number;
   description: string;
+  base_asset: string; // Explicitly define which base asset to use
   composite_prompts: {
     step: string;
     prompt: string;
@@ -65,6 +66,7 @@ const systemInstruction = `You are an AI Storyboard Director for "Living Meeple,
     * The "Fun FX" step must be used minimally. Avoid clutter. Use speech bubbles ONLY for critical moments like a charge or retreat.
     * Add text labels ONLY for major, named tactical movements (e.g., "Pickett's Charge"). Do not add a title to every frame.
 4.  **Source Text Attribution:** For each storyboard frame, you MUST include the specific sentence(s) from the original text that the frame is visualizing in the 'source_text' field.
+5.  **Base Asset Definition:** For each storyboard frame, you MUST specify which asset to use as the starting point in the 'base_asset' field (e.g., "Tactical Map" or "Regional Map").
 
 **Output Schema:** You will analyze the user's text and generate a JSON object based on the provided schema. This object will define the required assets and a multi-frame storyboard with composite image prompts, narration, SFX suggestions, and source text attribution for each frame.`;
 
@@ -73,6 +75,7 @@ const BATTLE_PLACEHOLDER = `Beginning in June 1863, General Lee began to move th
 // --- COMPONENT PROPS INTERFACES ---
 interface LandingPageProps {
   onStoryCreate: (inputText: string) => void;
+  isLoading: boolean;
 }
 
 interface StorybookViewProps {
@@ -97,11 +100,12 @@ interface WebAppProps {
   log: { timestamp: string, message: string }[];
   onRestart: () => void;
   onSelectStory: (story: StoredStory) => void;
+  isLoading: boolean;
 }
 
 
 // --- COMPONENT: LandingPage ---
-const LandingPage: FC<LandingPageProps> = ({ onStoryCreate }) => {
+const LandingPage: FC<LandingPageProps> = ({ onStoryCreate, isLoading }) => {
   const [inputText, setInputText] = useState('');
 
   const handleInsertExample = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -111,7 +115,7 @@ const LandingPage: FC<LandingPageProps> = ({ onStoryCreate }) => {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!inputText.trim()) return;
+    if (!inputText.trim() || isLoading) return;
     onStoryCreate(inputText);
   };
 
@@ -134,7 +138,9 @@ const LandingPage: FC<LandingPageProps> = ({ onStoryCreate }) => {
               <button type="button" onClick={handleInsertExample} className="example-link">
                 <i className="fas fa-file-alt"></i> Insert Example from OpenStax
               </button>
-              <button type="submit" disabled={!inputText.trim()} className="create-story-button">Create Story <i className="fas fa-arrow-right"></i></button>
+              <button type="submit" disabled={!inputText.trim() || isLoading} className="create-story-button">
+                {isLoading ? 'Creating...' : 'Create Story'} <i className="fas fa-arrow-right"></i>
+              </button>
             </div>
           </form>
         </div>
@@ -150,17 +156,11 @@ const LandingPage: FC<LandingPageProps> = ({ onStoryCreate }) => {
           <div className="mascot-container">
             <img src="images/mascot.png" alt="A friendly historian meeple reading a book" />
           </div>
-          <div className="villager-container">
-            <img src="images/villager.png" alt="A friendly villager meeple" />
-          </div>
-          <div className="chef-container">
-            <img src="images/chef.png" alt="A friendly chef meeple" />
-          </div>
         </div>
       </div>
       <footer className="footer">
         <p>A Hackathon Project for Kaggle's <a href="https://www.kaggle.com/competitions/banana" target="_blank" rel="noopener noreferrer">Nano-Banana Competition</a></p>
-        <p><strong>Acknowledgements:</strong> Google AI, Imagen, Nano-Banana, and ElevenLabs.</p>
+        <p><strong>Acknowledgements:</strong> Google AI, Gemini, and ElevenLabs.</p>
       </footer>
     </div>
   );
@@ -169,7 +169,13 @@ const LandingPage: FC<LandingPageProps> = ({ onStoryCreate }) => {
 // --- COMPONENT: StorybookView ---
 const StorybookView: FC<StorybookViewProps> = ({ story, onRestart }) => {
   const [pageIndex, setPageIndex] = useState(0);
-  if (!story) return null;
+
+  useEffect(() => {
+    // Reset page index when a new story is loaded
+    setPageIndex(0);
+  }, [story]);
+
+  if (!story) return <div className="detail-card"><p>Your story will appear here once it's created!</p></div>;
 
   const { plan, frames } = story;
   const currentPageData = plan.storyboard[pageIndex];
@@ -185,7 +191,7 @@ const StorybookView: FC<StorybookViewProps> = ({ story, onRestart }) => {
           {finalImageForPage ? (
             <img src={finalImageForPage.url} alt={currentPageData.description} />
           ) : (
-            <div className="image-placeholder">Generating Page...</div>
+            <div className="image-placeholder">Page content is being generated...</div>
           )}
         </div>
         <div className="storybook-details-panel">
@@ -214,7 +220,7 @@ const StorybookView: FC<StorybookViewProps> = ({ story, onRestart }) => {
         </button>
         <span>Page {pageIndex + 1} of {plan.storyboard.length}</span>
         {isLastPage ? (
-          <button onClick={onRestart} className="primary-button">Explore More History</button>
+          <button onClick={onRestart} className="primary-button">Create a New Story</button>
         ) : (
           <button onClick={() => setPageIndex(p => Math.min(plan.storyboard.length - 1, p + 1))}>
             Next Page <i className="fas fa-chevron-right"></i>
@@ -227,7 +233,7 @@ const StorybookView: FC<StorybookViewProps> = ({ story, onRestart }) => {
 
 // --- COMPONENT: ImageGalleryView ---
 const ImageGalleryView: FC<ImageGalleryViewProps> = ({ story }) => {
-  if (!story) return null;
+  if (!story) return <div className="detail-card"><p>Your image gallery will appear here once a story is created.</p></div>;
   const allImages = [
     ...Object.values(story.assets),
     ...story.frames.flat()
@@ -287,8 +293,16 @@ const DebugLogView: FC<DebugLogViewProps> = ({ log }) => (
 
 
 // --- COMPONENT: WebApp ---
-const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory }) => {
+const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, isLoading }) => {
   const [activeTab, setActiveTab] = useState('storybook');
+
+  useEffect(() => {
+    if (isLoading) {
+      setActiveTab('debug');
+    } else if (story) { // Only switch to storybook if a story exists
+      setActiveTab('storybook');
+    }
+  }, [isLoading, story]);
 
   return (
     <div className="webapp-container">
@@ -310,7 +324,8 @@ const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory }) => {
 
 // --- MAIN APP COMPONENT ---
 function App() {
-  const [view, setView] = useState<'landing' | 'loading' | 'webapp'>('landing');
+  const [view, setView] = useState<'landing' | 'webapp'>('landing');
+  const [isLoading, setIsLoading] = useState(false);
   const [currentStory, setCurrentStory] = useState<StoredStory | null>(null);
   const [debugLog, setDebugLog] = useState<{ timestamp: string, message: string }[]>([]);
 
@@ -320,8 +335,11 @@ function App() {
   };
 
   const handleCreateStory = async (inputText: string) => {
-    setView('loading');
+    setIsLoading(true);
+    setView('webapp');
     setDebugLog([]);
+    setCurrentStory(null); // Clear previous story
+
     addLog("Starting story generation...");
 
     try {
@@ -333,7 +351,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ inputText, systemInstruction, schema, safetySettings }),
       });
-      if (!planResponse.ok) throw new Error(`Failed to fetch plan: ${await planResponse.text()}`);
+      if (!planResponse.ok) throw new Error(`Plan generation failed: ${await planResponse.text()}`);
       const battlePlan: BattlePlan = await planResponse.json();
       addLog(`Plan received for: ${battlePlan.battle_identification.name}`);
 
@@ -360,17 +378,14 @@ function App() {
         addLog(`Compositing page ${i + 1} of ${battlePlan.storyboard.length}...`);
 
         const compositeImages: GeneratedAsset[] = [];
-        let currentImage: GeneratedAsset | null = null;
+        let currentImage: GeneratedAsset | null = assets[frame.base_asset];
+
+        if (!currentImage) {
+          throw new Error(`Base asset "${frame.base_asset}" not found for page ${i + 1}.`);
+        }
 
         for (const [stepIndex, p] of frame.composite_prompts.entries()) {
           if (p.prompt.toLowerCase().includes('skip')) continue;
-
-          if (stepIndex === 0) {
-            const baseMapType = p.prompt.toLowerCase().includes('regional map') ? 'Regional Map' : 'Tactical Map';
-            currentImage = assets[baseMapType];
-          }
-
-          if (!currentImage) throw new Error("Base image for compositing is missing.");
 
           addLog(` -> Step ${stepIndex + 1}: ${p.step}`);
           const editResponse = await fetch(`${serverUrl}/api/generate-frame`, {
@@ -398,19 +413,30 @@ function App() {
         frames: allFrames
       };
 
+      // Create a slim version for localStorage to avoid quota errors
+      const storyForCollection = {
+        id: newStory.id,
+        name: newStory.name,
+        plan: newStory.plan,
+        // We intentionally leave out the large 'assets' and 'frames' arrays
+      };
+
       const stored = localStorage.getItem('livingMeepleStories') || '[]';
       const collection = JSON.parse(stored);
-      collection.push(newStory);
+      if (collection.length >= 10) {
+        collection.shift();
+      }
+      collection.push(storyForCollection); // Push the slim version
       localStorage.setItem('livingMeepleStories', JSON.stringify(collection));
 
-      setCurrentStory(newStory);
+      setCurrentStory(newStory); 
       addLog("Story generation complete!");
-      setView('webapp');
 
     } catch (err: any) {
       addLog(`ERROR: ${err.message}`);
       console.error(err);
-      setView('landing'); // Go back to landing on error
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -424,14 +450,10 @@ function App() {
     setView('landing');
   };
 
-  if (view === 'loading') {
-    return <div className="loading-fullscreen"><DebugLogView log={debugLog} /></div>;
-  }
-
   return (
     <div className="app-container">
-      {view === 'landing' && <LandingPage onStoryCreate={handleCreateStory} />}
-      {view === 'webapp' && <WebApp story={currentStory} log={debugLog} onRestart={handleRestart} onSelectStory={handleSelectStory} />}
+      {view === 'landing' && <LandingPage onStoryCreate={handleCreateStory} isLoading={isLoading} />}
+      {view === 'webapp' && <WebApp story={currentStory} log={debugLog} onRestart={handleRestart} onSelectStory={handleSelectStory} isLoading={isLoading} />}
     </div>
   );
 }
@@ -450,6 +472,7 @@ const schema = {
         properties: {
           frame: { type: Type.INTEGER },
           description: { type: Type.STRING },
+          base_asset: { type: Type.STRING, description: "The asset_type of the base map to start this frame's composition (e.g., 'Tactical Map')." },
           composite_prompts: {
             type: Type.ARRAY,
             items: { type: Type.OBJECT, properties: { step: { type: Type.STRING }, prompt: { type: Type.STRING } } }

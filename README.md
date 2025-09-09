@@ -70,7 +70,7 @@ This allows you to trace the entire generation process, inspect the data at each
 
 ---
 
-## 🏆 About the Nano-Banana Hackathon
+## <font color="#00a0a0">🏆 About the Nano-Banana Hackathon</font>
 
 This project was developed for the Kaggle Nano-Banana Competition to showcase the new **Gemini 2.5 Flash Image Preview** model's advanced capabilities. The core of Living Meeple is its demonstration of:
 *   **Image Editing & In-painting**: Building complex scenes layer-by-layer.

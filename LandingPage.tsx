@@ -22,7 +22,7 @@ export const LandingPage: FC<LandingPageProps> = ({ onStoryCreate, isLoading }) 
         <img src="images/mascot.png" alt="Elder Meeple, the historian mascot, wearing a monocle and reading a history book." />
       </div>
       <div className="app-header">
-        <img src="images/living_meeple_header.png" alt="Living Meeple" />
+        <img src="images/living_meeple_header.png" alt="Living Meeple Logo" />
       </div>
       <p className="tagline">Turn dense history into delightful, meeple-sized stories.</p>
       <div className="panels-container">

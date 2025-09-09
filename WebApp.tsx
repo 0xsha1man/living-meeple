@@ -26,7 +26,7 @@ export const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, 
   return (
     <div className="webapp-container">
       <div className="webapp-header">
-        <img src="images/living_meeple_header.png" alt="Living Meeple" />
+        <img src="images/living_meeple_header.png" alt="Living Meeple Logo" />
       </div>
       <nav className="webapp-nav">
         <button onClick={() => setActiveTab('storybook')} className={activeTab === 'storybook' ? 'active' : ''}><i className="fas fa-book-reader"></i> Storybook</button>

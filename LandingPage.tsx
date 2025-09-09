@@ -18,23 +18,41 @@ export const LandingPage: FC<LandingPageProps> = ({ onStoryCreate, isLoading }) 
 
   return (
     <div className="landing-container">
-      <h1 className="main-title">Living Meeple</h1>
+      <div className="mascot-container">
+        <img src="images/mascot.png" alt="A friendly historian meeple reading a book" />
+      </div>
+      <div className="app-header">
+        <img src="images/living_meeple_header.png" alt="Living Meeple" />
+      </div>
       <p className="tagline">Turn dense history into delightful, meeple-sized stories.</p>
       <div className="panels-container">
         <div className="left-panel">
+          <h2><i className="fas fa-book-open"></i> Battle From A Textbook</h2>
+          <p>Take a paragraph or two from a textbook describing a historical battle and let Elder Meeple explain it in the meeple way. Meeples eagerly wait to re-enact history for you!</p>
           <form className="form-container" onSubmit={handleSubmit}>
             <textarea
               name="historyText"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="Meeples eagerly wait to re-enact history for you! Paste a story here..."
+              placeholder="Paste a battle from a textbook here..."
               aria-label="Paste the story of a battle here"
               required
             />
             <div className="form-actions">
-              <button type="button" onClick={handleInsertExample} className="example-link">
-                <i className="fas fa-file-alt"></i> Insert Example from OpenStax
-              </button>
+              <div className="example-action">
+                <button type="button" onClick={handleInsertExample} className="example-link">
+                  <i className="fas fa-file-alt"></i> Insert Example
+                </button>
+                <a
+                  href="https://openstax.org/books/us-history/pages/15-3-1863-the-changing-nature-of-the-war"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="source-link"
+                  title="Example text from OpenStax U.S. History, Chapter 15.3"
+                >
+                  from OpenStax
+                </a>
+              </div>
               <button type="submit" disabled={!inputText.trim() || isLoading} className="create-story-button">
                 {isLoading ? 'Creating...' : 'Create Story'} <i className="fas fa-arrow-right"></i>
               </button>
@@ -55,9 +73,6 @@ export const LandingPage: FC<LandingPageProps> = ({ onStoryCreate, isLoading }) 
             <p>
               This demo uses the free tier of Google's Gemini API, which has rate limits. To respect these limits, a delay is added between each generation step. As a result, creating a full story may take several minutes. Thanks for your patience!
             </p>
-          </div>
-          <div className="mascot-container">
-            <img src="images/mascot.png" alt="A friendly historian meeple reading a book" />
           </div>
         </div>
       </div>

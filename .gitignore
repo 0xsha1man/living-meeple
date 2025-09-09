@@ -1,29 +1,35 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
+# Dependency directories
 /node_modules
 
-# production
+# Build output
 /dist
 /build
 
-# misc
+# Mac and Windows system files
 .DS_Store
+Thumbs.db
+
+# Environment variables
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# temporary files created by this application
+# Temporary files created by this application
 /tmp
 
-# logs
+# Log files
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# local IDE config
+# IDE-specific configuration
 .vscode/
 .idea/
+
+# Test coverage
+/coverage

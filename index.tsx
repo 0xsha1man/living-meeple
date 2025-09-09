@@ -8,6 +8,7 @@ import ReactDOM from 'react-dom/client';
 import { generateBattlePlan } from './api';
 import { generateBaseAssets, generateStoryboardFrames } from './story-generator';
 
+import { Footer } from './Footer';
 import './index.css';
 import { BattlePlan, GeneratedAsset, StoredStory } from './interfaces';
 import { LandingPage } from './LandingPage';
@@ -86,16 +87,19 @@ function App() {
 
   return (
     <div className="app-container">
-      {view === 'landing' && <LandingPage onStoryCreate={handleCreateStory} isLoading={isLoading} />}
-      {view === 'webapp' && <WebApp
-        story={currentStory}
-        log={debugLog}
-        onRestart={handleRestart}
-        onSelectStory={handleSelectStory}
-        isLoading={isLoading}
-        realTimeAssets={realTimeAssets}
-        realTimeFrames={realTimeFrames}
-      />}
+      <main className="app-main-content">
+        {view === 'landing' && <LandingPage onStoryCreate={handleCreateStory} isLoading={isLoading} />}
+        {view === 'webapp' && <WebApp
+          story={currentStory}
+          log={debugLog}
+          onRestart={handleRestart}
+          onSelectStory={handleSelectStory}
+          isLoading={isLoading}
+          realTimeAssets={realTimeAssets}
+          realTimeFrames={realTimeFrames}
+        />}
+      </main>
+      <Footer />
     </div>
   );
 }

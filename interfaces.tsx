@@ -1,7 +1,7 @@
 export interface GeneratedAsset {
   url: string;
-  base64: string;
-  mimeType: string;
+  base64?: string;
+  mimeType?: string;
   caption?: string;
 }
 

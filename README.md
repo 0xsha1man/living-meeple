@@ -42,7 +42,11 @@ The result is a clean, simple, and visually engaging storybook that makes histor
 
 ## Challenges and Learnings
 
-The primary challenge in any multi-image AI project is maintaining visual consistency. Early AI image tools struggled to redraw the same character or maintain a coherent style from one image to the next. Our key learning was to leverage the new image editing and reference image capabilities of the Gemini 2.5 Flash model. By generating a base asset (like a meeple) once and then using it as a reference for in-painting, we could ensure our "characters" remained identical throughout the story. This project underscored the power of treating the AI not as a one-shot creator, but as a tool to be guided through a structured, layered workflow.
+The primary challenge in any multi-image AI project is maintaining visual consistency. Early AI image tools struggled to redraw the same character or maintain a coherent style from one image to the next. Our key learning was to leverage the new image editing and reference image capabilities of the Gemini 2.5 Flash model. By generating a base asset (like a meeple) once and then using it as a reference for in-painting, we could ensure our "characters" remained identical throughout the story.
+
+A second, practical challenge was working within the API's free-tier rate limits (e.g., 10 requests per minute for the image model, 30 RPM for the text model). Our layered approach, while powerful, makes many sequential API calls. To solve this, we engineered a deliberate delay between each request, pacing the application to respect the API quotas. This highlights a real-world engineering consideration when building production-ready AI applications.
+
+This project underscored the power of treating the AI not as a one-shot creator, but as a tool to be guided through a structured, layered workflow that respects both creative and technical constraints.
 
 ## Technology Stack
 
@@ -60,37 +64,3 @@ This project was developed for the Kaggle Nano-Banana Competition to showcase th
 *   **Character Consistency**: Generating a character asset (a meeple) once and using it as a reference to solve a classic AI image problem.
 
 The **Gemini 2.0 Flash** model plays the critical supporting role of the "Director," deconstructing unstructured text into a precise, machine-readable `BattlePlan`. This plan is what enables the highly-controlled, step-by-step use of the image model, demonstrating a powerful, multi-modal AI workflow.
-    *   Identifying the key factions and assigning them colors.
-    *   Defining the necessary maps and their key topographical features.
-    *   Breaking the narrative into a frame-by-frame storyboard, detailing every placement, movement, and label needed for each scene.
-
-2.  **Asset Generation (with Gemini 2.5 Flash Image Preview)**: The application then acts as the "Art Department". It follows the `BattlePlan` to generate all the necessary visual assets using the **Gemini 2.5 Flash Image Preview (`gemini-2.5-flash-image-preview`)** model's image generation capabilities:
-    *   It starts with a neutral, textured background.
-    *   It layers on topographical features (hills, rivers) and key landmarks, using a `cartography_style_guide.jpg` image to ensure a consistent, kid-friendly art style.
-    *   It designs unique meeple figures for each faction based on descriptions in the plan.
-
-3.  **Storyboard Composition (with Gemini 2.5 Flash Image Preview)**: Finally, the application becomes the "Animator". For each page in the storyboard, it uses the image editing (in-painting) capabilities of the Gemini model to:
-    *   Place the faction meeples on the map.
-    *   Draw arrows to represent movements like charges or flanking maneuvers.
-    *   Add labels for key locations.
-    *   Each action is a new layer, building up to the final image for that page of the story.
-
-The result is a clean, simple, and visually engaging storybook that makes history easier to grasp.
-
-## Challenges and Learnings
-
-The primary challenge was controlling the AI to ensure consistency and prevent it from "improvising" details. We overcame this through rigorous prompt engineering, breaking down large tasks into smaller, highly-specific sub-tasks, and using a layered generation process. This project underscored the power of treating the AI not as a one-shot creator, but as a tool to be guided through a structured workflow.
-
-## Technology Stack
-
-*   **Frontend**: React, TypeScript
-*   **Backend**: Node.js, Express
-*   **AI Planning Model**: Google Gemini 2.0 Flash (`gemini-2.0-flash-lite`)
-*   **AI Image Generation & Editing Model**: Google Gemini 2.5 Flash Image Preview (`gemini-2.5-flash-image-preview`)
-*   **Future Work**: Integration with ElevenLabs for AI-powered audio narration of the story.
-
-## About the Nano-Banana Hackathon
-
-This project was developed for the Kaggle Nano-Banana Competition. The core challenge was to build a useful AI application using the new **Gemini 2.0 Flash** model.
-
-In Living Meeple, **Gemini 2.0 Flash** is the brain of the operation. Its speed, instruction-following capabilities, and proficiency with structured JSON output were essential for the planning phase. It successfully deconstructs complex, unstructured historical text into a precise, machine-readable `BattlePlan` that drives the entire visual generation process. This demonstrates the model's power not just as a text generator, but as a critical component in a complex, multi-step AI workflow.

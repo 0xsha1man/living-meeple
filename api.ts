@@ -6,9 +6,13 @@ import { BattleIdentification, BattlePlan, Faction, GeneratedAsset, MapAsset, St
 import { base_schema } from './schema/base_schema';
 import { maps_schema } from './schema/maps_schema';
 import { storyboard_schema } from './schema/storyboard_schema';
+import { sleep } from './utils';
 
 const API_BASE_URL = 'http://localhost:3001';
 const safetySettings = [{ category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }, { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }, { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }, { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }];
+
+// Delay to stay within API rate limits for the planning model.
+const PLAN_GENERATION_DELAY_MS = 5000; // 5 seconds
 
 /**
  * Generates a new image from a text prompt.
@@ -26,11 +30,8 @@ export const executeImageGeneration = async (prompt: string, caption: string): P
     const errorBody = await imageResponse.text();
     throw new Error(`Failed to generate image asset (${caption}): ${errorBody}`);
   }
-  const { base64, mimeType } = await imageResponse.json();
-  return {
-    url: `data:${mimeType};base64,${base64}`,
-    base64, mimeType, caption
-  };
+  const { url } = await imageResponse.json();
+  return { url, caption };
 };
 
 /**
@@ -44,17 +45,15 @@ export const executeImageGeneration = async (prompt: string, caption: string): P
  */
 export const executeImageEdit = async (currentImage: GeneratedAsset, prompt: string, caption: string, styleReference?: GeneratedAsset): Promise<GeneratedAsset> => {
   const body: {
-    base64: string;
-    mimeType: string;
+    imageUrl: string;
     prompt: string;
-    style_reference_base64?: string;
+    style_reference_url?: string;
   } = {
-    base64: currentImage.base64,
-    mimeType: currentImage.mimeType,
+    imageUrl: currentImage.url,
     prompt,
   };
   if (styleReference) {
-    body.style_reference_base64 = styleReference.base64;
+    body.style_reference_url = styleReference.url;
   }
   const editResponse = await fetch(`${API_BASE_URL}/api/generate-frame`, {
     method: 'POST',
@@ -65,11 +64,8 @@ export const executeImageEdit = async (currentImage: GeneratedAsset, prompt: str
     const errorBody = await editResponse.text();
     throw new Error(`Failed to generate frame step (${caption}): ${errorBody}`);
   }
-  const { base64, mimeType } = await editResponse.json();
-  return {
-    base64, mimeType, url: `data:${mimeType};base64,${base64}`,
-    caption
-  };
+  const { url } = await editResponse.json();
+  return { url, caption };
 };
 
 /**
@@ -114,10 +110,16 @@ export const generateBattlePlan = async (inputText: string, addLog: (message: st
   addLog(` -> Received Battle ID: ${baseInfo.battle_identification.name}`);
   addLog(` -> Received Factions: ${baseInfo.factions.map(f => f.name).join(', ')}`);
 
+  addLog(`Waiting ${PLAN_GENERATION_DELAY_MS / 1000}s before next step...`);
+  await sleep(PLAN_GENERATION_DELAY_MS);
+
   addLog("Step 2: Generating map details...");
   const mapsContext = `The following text describes the Battle of ${baseInfo.battle_identification.name}.`;
   const mapsInfo: { maps: MapAsset[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_MAPS, maps_schema, addLog, mapsContext);
   addLog(` -> Received ${mapsInfo.maps.length} map definitions.`);
+
+  addLog(`Waiting ${PLAN_GENERATION_DELAY_MS / 1000}s before next step...`);
+  await sleep(PLAN_GENERATION_DELAY_MS);
 
   addLog("Step 3: Generating storyboard frames...");
   const storyboardContext = `Based on the following summary, create a storyboard: "${baseInfo.battle_identification.narrative_summary}"`;

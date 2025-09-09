@@ -50,15 +50,17 @@ export const LandingPage: FC<LandingPageProps> = ({ onStoryCreate, isLoading }) 
               <li><strong>Explore:</strong> Watch history unfold, page by page!</li>
             </ol>
           </div>
+          <div className="detail-card" style={{ marginTop: '1.5rem' }}>
+            <h4><i className="fas fa-stopwatch"></i> A Note on Speed</h4>
+            <p>
+              This demo uses the free tier of Google's Gemini API, which has rate limits. To respect these limits, a delay is added between each generation step. As a result, creating a full story may take several minutes. Thanks for your patience!
+            </p>
+          </div>
           <div className="mascot-container">
             <img src="images/mascot.png" alt="A friendly historian meeple reading a book" />
           </div>
         </div>
       </div>
-      <footer className="footer">
-        <p>A Hackathon Project for Kaggle's <a href="https://www.kaggle.com/competitions/banana" target="_blank" rel="noopener noreferrer">Nano-Banana Competition</a></p>
-        <p><strong>Acknowledgements:</strong> Google AI, Gemini, and ElevenLabs.</p>
-      </footer>
     </div>
   );
 };

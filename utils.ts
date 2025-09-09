@@ -10,3 +10,9 @@ export const fillPromptTemplate = (template: string, values: { [key: string]: st
     return acc.replace(new RegExp(`{{${key}}}`, 'g'), String(value));
   }, template);
 };
+
+/**
+ * Pauses execution for a specified number of milliseconds.
+ * @param ms The number of milliseconds to wait.
+ */
+export const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));

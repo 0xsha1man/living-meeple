@@ -2,7 +2,10 @@ import React from 'react';
 import { executeImageEdit, executeImageGeneration } from './api';
 import { PROMPT_TEMPLATES } from './data/prompts';
 import { BattlePlan, GeneratedAsset } from './interfaces';
-import { fillPromptTemplate } from './utils';
+import { fillPromptTemplate, sleep } from './utils';
+
+// Delay to stay within API rate limits for the image generation model.
+const IMAGE_GENERATION_DELAY_MS = 15000; // 15 seconds
 
 /**
  * Fetches a static asset from a URL, converts it to base64, and returns it
@@ -14,25 +17,12 @@ import { fillPromptTemplate } from './utils';
  * @returns A promise that resolves to the loaded `GeneratedAsset`.
  */
 const loadStaticAsset = async (url: string, caption: string, addLog: (message: string) => void): Promise<GeneratedAsset> => {
-  addLog(`Loading static asset: ${url}`);
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to load static asset: ${url} - ${response.statusText}`);
-  }
-  const blob = await response.blob();
-  const mimeType = blob.type;
-  const reader = new FileReader();
-  return new Promise((resolve, reject) => {
-    reader.onloadend = () => {
-      const base64 = (reader.result as string).split(',')[1];
-      const objectURL = URL.createObjectURL(blob);
-      resolve({
-        url: objectURL, base64, mimeType, caption
-      });
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+  addLog(`Using static asset: ${url}`);
+  // The server will resolve this path relative to its public directory.
+  return {
+    url,
+    caption,
+  };
 };
 
 /**
@@ -59,6 +49,8 @@ export const generateBaseAssets = async (
   addLog('Generating neutral map background...');
   const neutralBgAsset = await executeImageGeneration(PROMPT_TEMPLATES.base.neutralBackground, 'Neutral Map Background');
   setRealTimeAssets(prev => ({ ...prev, 'neutral_background': neutralBgAsset }));
+  addLog(`Waiting ${IMAGE_GENERATION_DELAY_MS / 1000}s before next step...`);
+  await sleep(IMAGE_GENERATION_DELAY_MS);
 
   addLog('Loading cartography style guide...');
   const cartographyGuideAsset = await loadStaticAsset('/images/cartography_style_guide.jpg', 'Cartography Style Guide', addLog);
@@ -71,6 +63,8 @@ export const generateBaseAssets = async (
     const featuresPrompt = fillPromptTemplate(PROMPT_TEMPLATES.map.features, { description: map.defining_features_description });
     let currentMap = await executeImageEdit(neutralBgAsset, featuresPrompt, `${map.map_type} Map - Features`, cartographyGuideAsset);
     setRealTimeAssets(prev => ({ ...prev, [`${map.map_asset_name}_features`]: currentMap }));
+    addLog(`Waiting ${IMAGE_GENERATION_DELAY_MS / 1000}s before next step...`);
+    await sleep(IMAGE_GENERATION_DELAY_MS);
 
     addLog(` -> Adding key landmarks for ${map.map_asset_name}`);
     const landmarksPrompt = fillPromptTemplate(PROMPT_TEMPLATES.map.landmarks, { description: map.key_landmarks_description });
@@ -78,6 +72,8 @@ export const generateBaseAssets = async (
 
     assets[map.map_asset_name] = finalMapAsset;
     setRealTimeAssets(prev => ({ ...prev, [map.map_asset_name]: finalMapAsset }));
+    addLog(`Waiting ${IMAGE_GENERATION_DELAY_MS / 1000}s before next step...`);
+    await sleep(IMAGE_GENERATION_DELAY_MS);
   }
 
   for (const faction of battlePlan.factions) {
@@ -85,6 +81,8 @@ export const generateBaseAssets = async (
     const meepleAsset = await executeImageGeneration(faction.meeple_description, `${faction.name} Meeple (Base Asset)`);
     assets[faction.meeple_asset_name] = meepleAsset;
     setRealTimeAssets(prev => ({ ...prev, [faction.meeple_asset_name]: meepleAsset }));
+    addLog(`Waiting ${IMAGE_GENERATION_DELAY_MS / 1000}s before next step...`);
+    await sleep(IMAGE_GENERATION_DELAY_MS);
   }
 
   addLog("All base assets generated.");
@@ -130,6 +128,8 @@ export const generateStoryboardFrames = async (
         const prompt = fillPromptTemplate(PROMPT_TEMPLATES.storyboard.placement, { amount: placement.amount, assetName: placement.faction_asset_name, location: placement.location, density: placement.density });
         currentImage = await executeImageEdit(currentImage, prompt, `Page ${i + 1} - Place ${placement.faction_asset_name}`);
         compositeImages.push(currentImage);
+        addLog(`Waiting ${IMAGE_GENERATION_DELAY_MS / 1000}s before next step...`);
+        await sleep(IMAGE_GENERATION_DELAY_MS);
       }
     }
 
@@ -140,6 +140,8 @@ export const generateStoryboardFrames = async (
         const prompt = fillPromptTemplate(PROMPT_TEMPLATES.storyboard.movement, { color: factionColor, start: movement.starting_point, type: movement.movement_type, end: movement.end_point });
         currentImage = await executeImageEdit(currentImage, prompt, `Page ${i + 1} - Move ${movement.faction_asset_name}`);
         compositeImages.push(currentImage);
+        addLog(`Waiting ${IMAGE_GENERATION_DELAY_MS / 1000}s before next step...`);
+        await sleep(IMAGE_GENERATION_DELAY_MS);
       }
     }
 
@@ -149,6 +151,8 @@ export const generateStoryboardFrames = async (
         const prompt = fillPromptTemplate(PROMPT_TEMPLATES.storyboard.label, { text: label.text, location: label.location });
         currentImage = await executeImageEdit(currentImage, prompt, `Page ${i + 1} - Label ${label.text}`);
         compositeImages.push(currentImage);
+        addLog(`Waiting ${IMAGE_GENERATION_DELAY_MS / 1000}s before next step...`);
+        await sleep(IMAGE_GENERATION_DELAY_MS);
       }
     }
 

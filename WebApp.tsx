@@ -28,7 +28,15 @@ export const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, 
         {activeTab === 'storybook' && <StorybookView story={story} />}
         {activeTab === 'gallery' && <ImageGalleryView assets={realTimeAssets} frames={realTimeFrames} />}
         {/* {activeTab === 'collection' && <StoryCollectionView onSelectStory={onSelectStory} />} */}
-        {activeTab === 'debug' && <DebugLogView log={log} />}
+        {activeTab === 'debug' && <>
+          <div className="detail-card" style={{ marginBottom: '1.5rem' }}>
+            <h4><i className="fas fa-stopwatch"></i> A Note on Generation Speed</h4>
+            <p>
+              This project runs on the free tier of Google's Gemini API, which has rate limits (e.g., 10 requests per minute for the image model). To avoid exceeding these limits, a deliberate delay has been engineered between each step of the generation process. This is why the story takes a few minutes to create. Thank you for your patience!
+            </p>
+          </div>
+          <DebugLogView log={log} />
+        </>}
       </main>
     </div>
   );

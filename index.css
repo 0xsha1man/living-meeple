@@ -42,6 +42,13 @@ p {
 .app-container {
   max-width: 1200px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 4rem); /* Account for body padding */
+}
+
+.app-main-content {
+  flex-grow: 1;
 }
 
 /* --- LANDING PAGE --- */
@@ -193,10 +200,24 @@ textarea::placeholder {
   text-align: center;
   color: var(--text-muted-color);
   font-size: 0.9rem;
+  padding: 2rem 0 0 0;
+  margin-top: auto; /* Push to bottom in flex container */
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .footer a {
   color: var(--secondary-color);
+  text-decoration: none;
+}
+
+.footer a:hover {
+  text-decoration: underline;
 }
 
 /* --- WEB APP MODE --- */

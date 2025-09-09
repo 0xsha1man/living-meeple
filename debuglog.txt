@@ -1,0 +1,197 @@
+[
+    10: 44: 16 AM
+] Starting story generation...
+[
+    10: 44: 16 AM
+] Sending text to server for planning...
+[
+    10: 44: 23 AM
+] Plan generation response status: 200
+[
+    10: 44: 23 AM
+] Plan received: {
+    "battle_identification": {
+        "name": "Battle of Gettysburg",
+        "context": "The Battle of Gettysburg was a major battle in the American Civil War where the Union and Confederate armies clashed in Pennsylvania.",
+        "narrative_summary": "In July 1863, the Union and Confederate armies met in Gettysburg, Pennsylvania. After three days of intense fighting, the Union forces won, marking a turning point in the war. The Confederates, led by General Lee, were defeated and forced to retreat."
+    },
+    "factions": [
+        {
+            "name": "Union",
+            "meeple_color": "blue",
+            "meeple_asset_name": "meeple_blue",
+            "meeple_description": "A simple, solid matte painted wooden figure in blue with a Hardee hat silhouette in a neutral, front-facing pose on a plain white background. The style must be suitable for a children's history textbook and easy to use as a character model."
+        },
+        {
+            "name": "Confederate",
+            "meeple_color": "red",
+            "meeple_asset_name": "meeple_red",
+            "meeple_description": "A simple, solid matte painted wooden figure in red with a slouch hat silhouette in a neutral, front-facing pose on a plain white background. The style must be suitable for a children's history textbook and easy to use as a character model."
+        }
+    ],
+    "maps": [
+        {
+            "map_type": "tactical",
+            "map_asset_name": "tactical_map",
+            "description": "A map of the Gettysburg battlefield showing Cemetery Ridge, Culp's Hill, and the open field where Pickett's Charge took place. Key landmarks and troop positions are marked."
+        },
+        {
+            "map_type": "regional",
+            "map_asset_name": "regional_map",
+            "description": "A zoomed-out view of the Gettysburg area, highlighting the states involved and showing the movement of the armies leading up to the battle."
+        }
+    ],
+    "storyboard": [
+        {
+            "frame": 1,
+            "description": "Confederate forces moved north through Maryland, and the Union army followed, leading to the armies meeting in Gettysburg, Pennsylvania.",
+            "base_asset": "regional_map",
+            "source_text": "Beginning in June 1863, General Lee began to move the Army of Northern Virginia north through Maryland. The Union army—the Army of the Potomac—traveled north to end up alongside the Confederate forces.",
+            "labels": [
+                {
+                    "text": "Gettysburg",
+                    "location": "Gettysburg, PA",
+                    "context": "The location where the armies met and the battle took place."
+                }
+            ]
+        },
+        {
+            "frame": 2,
+            "description": "The Union army defended Culp's Hill.",
+            "base_asset": "tactical_map",
+            "source_text": "In the morning, after a fight lasting several hours, Union forces fought back a Confederate attack on Culp’s Hill, one of the Union’s defensive positions.",
+            "labels": [
+                {
+                    "text": "Culp's Hill",
+                    "location": "Culp's Hill",
+                    "context": "One of the Union's key defensive positions."
+                }
+            ],
+            "placements": [
+                {
+                    "faction_asset_name": "meeple_blue",
+                    "location": "Culp's Hill",
+                    "amount": 50,
+                    "density": "densely packed"
+                },
+                {
+                    "faction_asset_name": "meeple_red",
+                    "location": "Culp's Hill",
+                    "amount": 30,
+                    "density": "scattered"
+                }
+            ]
+        },
+        {
+            "frame": 3,
+            "description": "Lee ordered Pickett's Charge, a frontal assault against the center of the Union lines.",
+            "base_asset": "tactical_map",
+            "source_text": "To regain a perceived advantage and secure victory, Lee ordered a frontal assault, known as Pickett’s Charge (for Confederate general George Pickett), against the center of the Union lines on Cemetery Ridge.",
+            "labels": [
+                {
+                    "text": "Cemetery Ridge",
+                    "location": "Cemetery Ridge",
+                    "context": "The main defensive position of the Union army."
+                }
+            ],
+            "movements": [
+                {
+                    "faction_asset_name": "meeple_red",
+                    "starting_point": "Open Field",
+                    "end_point": "Cemetery Ridge",
+                    "movement_type": "frontal assault"
+                }
+            ],
+            "placements": [
+                {
+                    "faction_asset_name": "meeple_blue",
+                    "location": "Cemetery Ridge",
+                    "amount": 60,
+                    "density": "densely packed"
+                }
+            ]
+        },
+        {
+            "frame": 4,
+            "description": "The Confederate attack was repulsed, and the Confederates retreated.",
+            "base_asset": "tactical_map",
+            "source_text": "Approximately fifteen thousand Confederate soldiers took part, and more than half lost their lives, as they advanced nearly a mile across an open field to attack the entrenched Union forces. ... on the evening of July 4, Lee and his men slipped away in the rain. General George Meade did not pursue them.",
+            "movements": [
+                {
+                    "faction_asset_name": "meeple_red",
+                    "starting_point": "Cemetery Ridge",
+                    "end_point": "Confederate lines",
+                    "movement_type": "retreat"
+                }
+            ],
+            "placements": [
+                {
+                    "faction_asset_name": "meeple_red",
+                    "location": "Open Field",
+                    "amount": 40,
+                    "density": "scattered"
+                }
+            ]
+        }
+    ]
+}
+[
+    10: 44: 23 AM
+] Plan received for: Battle of Gettysburg
+[
+    10: 44: 23 AM
+] Generating map asset: tactical_map
+[
+    10: 44: 32 AM
+] Generating map asset: regional_map
+[
+    10: 44: 39 AM
+] Generating meeple asset for: Union
+[
+    10: 44: 49 AM
+] Generating meeple asset for: Confederate
+[
+    10: 44: 55 AM
+] All base assets generated.
+[
+    10: 44: 55 AM
+] Compositing page 1 of 4...
+[
+    10: 44: 55 AM
+]  -> Adding label "Gettysburg" at Gettysburg, PA
+[
+    10: 45: 04 AM
+] Compositing page 2 of 4...
+[
+    10: 45: 04 AM
+]  -> Placing 50 meeple_blue at Culp's Hill
+[
+    10: 45: 13 AM
+]  -> Placing 30 meeple_red at Culp's Hill
+[
+    10: 45: 23 AM
+]  -> Adding label "Culp's Hill" at Culp's Hill
+[
+    10: 45: 31 AM
+] Compositing page 3 of 4...
+[
+    10: 45: 31 AM
+]  -> Placing 60 meeple_blue at Cemetery Ridge
+[
+    10: 45: 41 AM
+]  -> Adding movement arrows for meeple_red from Open Field to Cemetery Ridge
+[
+    10: 45: 52 AM
+]  -> Adding label "Cemetery Ridge" at Cemetery Ridge
+[
+    10: 46: 01 AM
+] Compositing page 4 of 4...
+[
+    10: 46: 01 AM
+]  -> Placing 40 meeple_red at Open Field
+[
+    10: 46: 10 AM
+]  -> Adding movement arrows for meeple_red from Cemetery Ridge to Confederate lines
+[
+    10: 46: 19 AM
+] Storyboard generation complete!

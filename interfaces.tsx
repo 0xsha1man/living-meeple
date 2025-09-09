@@ -5,14 +5,33 @@ export interface GeneratedAsset {
   caption?: string;
 }
 
+export interface Placement {
+  faction_asset_name: string;
+  location: string;
+  amount: number;
+  density: string;
+}
+
+export interface Movement {
+  faction_asset_name: string;
+  starting_point: string;
+  end_point: string;
+  movement_type: string;
+}
+
+export interface Label {
+  text: string;
+  location: string;
+  context: string;
+}
+
 export interface StoryboardFrame {
   frame: number;
   description: string;
   base_asset: string;
-  composite_prompts: {
-    step: string;
-    prompt: string;
-  }[];
+  placements?: Placement[];
+  movements?: Movement[];
+  labels?: Label[];
   source_text: string;
 }
 
@@ -27,48 +46,39 @@ export interface StoredStory {
 export interface BattleIdentification {
   name: string;
   context: string;
+  narrative_summary: string;
 }
 
 export interface Faction {
   name: string;
   meeple_color: string;
   meeple_asset_name: string;
+  meeple_feature: string;
+  meeple_description: string;
 }
 
-export interface RequiredAsset {
-  asset_type: string;
-  description: string;
-}
-
-export interface CompositePrompt {
-  step: string;
-  prompt: string;
-}
-
-export interface StoryboardFrame {
-  frame: number;
-  description: string;
-  base_asset: string;
-  composite_prompts: CompositePrompt[];
-  source_text: string;
+export interface MapAsset {
+  map_type: 'tactical' | 'regional' | string;
+  defining_features_description: string;
+  key_landmarks_description: string;
+  map_asset_name: string;
 }
 
 export interface BattlePlan {
   battle_identification: BattleIdentification;
   factions: Faction[];
-  required_assets: RequiredAsset[];
-  narrative_summary: string;
+  maps: MapAsset[];
   storyboard: StoryboardFrame[];
 }
 
-export const schema: BattlePlan = {
+export const EMPTY_BATTLE_PLAN: BattlePlan = {
   battle_identification: {
     name: '',
-    context: ''
+    context: '',
+    narrative_summary: ''
   },
   factions: [],
-  required_assets: [],
-  narrative_summary: '',
+  maps: [],
   storyboard: []
 };
 

@@ -31,7 +31,11 @@ export const executeImageGeneration = async (prompt: string, caption: string, ad
     throw new Error(`Failed to generate image asset (${caption}): ${errorBody}`);
   }
   const { url, requestLog, responseLog } = await imageResponse.json();
-  addLog(` -> API logs saved to /tmp/${requestLog} and /tmp/${responseLog}`);
+  if (responseLog) {
+    addLog(` -> API logs saved to ${requestLog} and ${responseLog}`);
+  } else {
+    addLog(` -> API request log saved to ${requestLog}`);
+  }
   return { url, caption };
 };
 
@@ -66,7 +70,11 @@ export const executeImageEdit = async (currentImage: GeneratedAsset, prompt: str
     throw new Error(`Failed to generate frame step (${caption}): ${errorBody}`);
   }
   const { url, requestLog, responseLog } = await editResponse.json();
-  addLog(` -> API logs saved to /tmp/${requestLog} and /tmp/${responseLog}`);
+  if (responseLog) {
+    addLog(` -> API logs saved to ${requestLog} and ${responseLog}`);
+  } else {
+    addLog(` -> API request log saved to ${requestLog}`);
+  }
   return { url, caption };
 };
 
@@ -81,20 +89,20 @@ export const executeImageEdit = async (currentImage: GeneratedAsset, prompt: str
  * @param context Optional additional context to prepend to the system instruction.
  * @returns A promise that resolves to the parsed JSON part of the plan.
  */
-const generatePlanPart = async (inputText: string, instruction: string, schema: any, addLog: (message: string) => void, context?: string) => {
+const generatePlanPart = async (inputText: string, instruction: string, schema: any, addLog: (message: string) => void, partName: string, context?: string) => {
   const fullInstruction = context ? `${context}\n\n${instruction}` : instruction;
   const response = await fetch(`${API_BASE_URL}/api/generate-plan`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ inputText, SYSTEM_INSTRUCTION: fullInstruction, schema, safetySettings }),
+    body: JSON.stringify({ inputText, SYSTEM_INSTRUCTION: fullInstruction, schema, safetySettings, partName }),
   });
-  addLog(`Plan part generation response status: ${response.status}`);
+  addLog(`Plan part generation for '${partName}' response status: ${response.status}`);
   if (!response.ok) {
     const errorBody = await response.text();
     throw new Error(`Plan generation failed: ${errorBody}`);
   }
   const { requestLog, responseLog, ...planData } = await response.json();
-  addLog(` -> Plan part logs saved to /tmp/${requestLog} and /tmp/${responseLog}`);
+  addLog(` -> Plan part logs saved to ${requestLog} and ${responseLog}`);
   return planData;
 };
 
@@ -110,7 +118,7 @@ const generatePlanPart = async (inputText: string, instruction: string, schema: 
  */
 export const generateBattlePlan = async (inputText: string, addLog: (message: string) => void): Promise<BattlePlan> => {
   addLog("Step 1: Generating base battle plan...");
-  const baseInfo: { battle_identification: BattleIdentification, factions: Faction[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_BASE, base_schema, addLog);
+  const baseInfo: { battle_identification: BattleIdentification, factions: Faction[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_BASE, base_schema, addLog, 'base-info');
   addLog(` -> Received Battle ID: ${baseInfo.battle_identification.name}`);
   addLog(` -> Received Factions: ${baseInfo.factions.map(f => f.name).join(', ')}`);
 
@@ -119,7 +127,7 @@ export const generateBattlePlan = async (inputText: string, addLog: (message: st
 
   addLog("Step 2: Generating map details...");
   const mapsContext = `The following text describes the Battle of ${baseInfo.battle_identification.name}.`;
-  const mapsInfo: { maps: MapAsset[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_MAPS, maps_schema, addLog, mapsContext);
+  const mapsInfo: { maps: MapAsset[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_MAPS, maps_schema, addLog, 'maps', mapsContext);
   addLog(` -> Received ${mapsInfo.maps.length} map definitions.`);
 
   addLog(`Waiting ${PLAN_GENERATION_DELAY_MS / 1000}s before next step...`);
@@ -127,11 +135,10 @@ export const generateBattlePlan = async (inputText: string, addLog: (message: st
 
   addLog("Step 3: Generating storyboard frames...");
   const storyboardContext = `Based on the following summary, create a storyboard: "${baseInfo.battle_identification.narrative_summary}"`;
-  const storyboardInfo: { storyboard: StoryboardFrame[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_STORYBOARD, storyboard_schema, addLog, storyboardContext);
+  const storyboardInfo: { storyboard: StoryboardFrame[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_STORYBOARD, storyboard_schema, addLog, 'storyboard', storyboardContext);
   addLog(` -> Received ${storyboardInfo.storyboard.length} storyboard frames.`);
 
   const battlePlan: BattlePlan = { ...baseInfo, ...mapsInfo, ...storyboardInfo };
-  addLog(`Complete plan received for: ${battlePlan.battle_identification.name}`);
-  addLog(`Full Plan: ${JSON.stringify(battlePlan, null, 2)}`);
+  addLog(`Complete plan received for: ${battlePlan.battle_identification.name}.`);
   return battlePlan;
 };

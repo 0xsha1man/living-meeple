@@ -48,12 +48,57 @@ This project underscored the power of treating the AI not as a one-shot creator,
 
 ## For Local Developers
 
+### Setup and Running
+
+To get the Living Meeple project running on your local machine, follow these steps:
+
+1.  **Prerequisites:** Make sure you have [Node.js](https://nodejs.org/) (version 18 or higher is recommended) and a package manager like `npm` or `yarn` installed.
+
+2.  **Clone the Repository:**
+    ```bash
+    # Replace with your repository's URL
+    git clone https://github.com/google-gemini/generative-ai-docs-samples.git
+    cd generative-ai-docs-samples/demos/living-meeple
+    ```
+
+3.  **Install Dependencies:**
+    ```bash
+    npm install
+    ```
+
+4.  **Set Up Environment Variables:**
+    The application requires a Google Gemini API key to function.
+    *   Create a new file named `.env` in the root of the project directory.
+    *   Add your Gemini API key to the `.env` file. You can get a key from Google AI Studio.
+        ```
+        GEMINI_API_KEY="your_api_key_here"
+        ```
+
+5.  **Run the Development Servers:**
+    This project consists of two main parts: a Node.js/Express backend server for API calls and a React/Vite frontend for the user interface. You'll need to run them concurrently in two separate terminal windows.
+
+    *   **Terminal 1: Start the Backend API Server**
+        ```bash
+        # This command starts the backend server, which handles requests to the Gemini API.
+        # It will typically run on http://localhost:3001.
+        npx ts-node-dev --respawn server.ts
+        ```
+
+    *   **Terminal 2: Start the Frontend Vite Server**
+        ```bash
+        # This command starts the frontend development server, typically on http://localhost:5173.
+        npm run dev
+        ```
+
+6.  **Open the Application:**
+    Open your web browser and navigate to the address for the frontend server (e.g., `http://localhost:5173`). You should now be able to use the Living Meeple application!
+
+### Debugging and Generated Files
+
 When you run this project locally, it creates a `/tmp` directory in the project root to aid in debugging and development. This directory contains:
 
 *   **Generated Images**: All images created during the process, including base maps, map layers, meeples, and the final composited storyboard frames.
-*   **API Call Logs**: For each call to the Gemini API, a pair of numbered JSON files are saved:
-    *   `XXX-request.json`: The exact JSON body sent to the API.
-    *   `XXX-response.json`: The full, raw JSON response received from the API.
+*   **API Call Logs**: For each call to the Gemini API, a pair of JSON files are saved, named with a SHA256 hash of their content. The UI debug log will show you the exact filenames for each request, allowing you to inspect the raw request sent to the model and the raw response received.
 *   **Session Debug Log**: A timestamped log file (e.g., `debug-2024-10-27_14-30-05.log`) that contains the complete, human-readable log for the entire story generation session. The UI's "Debug Log" tab mirrors this content.
 
 This allows you to trace the entire generation process, inspect the data at each step, and easily debug any issues with planning or image generation.

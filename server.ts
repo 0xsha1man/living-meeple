@@ -41,17 +41,11 @@ function saveImageAndGetUrl(buffer: Buffer, mimeType: string): string {
   return `/tmp/${fileName}`;
 }
 
-let requestCounter = 0;
-const saveContent = (content: string, extension: 'json' | 'txt', name: string): string => {
-  // Reset counter for each story generation to keep numbers small
-  if (name.startsWith('plan-request')) {
-    requestCounter = 0;
-  }
-  const count = ++requestCounter;
-  const fileName = `${String(count).padStart(3, '0')}-${name}.${extension}`;
+const saveContent = (content: string, extension: 'json' | 'txt'): string => {
+  const hash = crypto.createHash('sha256').update(content).digest('hex');
+  const fileName = `${hash}.${extension}`;
   const filePath = path.join(TMP_DIR, fileName);
   fs.writeFileSync(filePath, content);
-  // Return just the filename for logging
   return fileName;
 };
 
@@ -65,7 +59,7 @@ function lookupMime(filename: string): string {
 
 // Endpoint to generate the initial battle plan
 app.post('/api/generate-plan', async (req, res) => {
-    const { inputText, SYSTEM_INSTRUCTION, schema, safetySettings } = req.body;
+    const { inputText, SYSTEM_INSTRUCTION, schema, safetySettings, partName } = req.body;
     try {
         // TODO: Implement caching for system instructions to reduce token count and improve latency.
         // This would involve:
@@ -76,7 +70,7 @@ app.post('/api/generate-plan', async (req, res) => {
         // 4. On subsequent requests, using the stored `cachedContent.name` in the `generateContent` call
         //    instead of passing the full `systemInstruction` and `schema` again.
         //    e.g., const result = await ai.models.generateContent({ model: MODEL_GENERATE_PLAN, cachedContent: cache.name, ... })
-        const requestLog = saveContent(JSON.stringify(req.body, null, 2), 'json', 'plan-request');
+        const requestLog = saveContent(JSON.stringify(req.body, null, 2), 'json');
         const result = await ai.models.generateContent({
             model: MODEL_GENERATE_PLAN,
             contents: [{ parts: [{ text: inputText }] }],
@@ -87,7 +81,7 @@ app.post('/api/generate-plan', async (req, res) => {
         if (!result.text) {
             throw new Error("Invalid or empty plan received from the API.");
         }
-        const responseLog = saveContent(result.text, 'json', 'plan-response');
+        const responseLog = saveContent(result.text, 'json');
         res.json({ ...JSON.parse(result.text), requestLog, responseLog });
     } catch (error: any) {
         console.error("Error in /api/generate-plan:", error);
@@ -98,23 +92,23 @@ app.post('/api/generate-plan', async (req, res) => {
 // Endpoint to generate a single base asset image
 app.post('/api/generate-image', async (req, res) => {
     const { prompt } = req.body;
-    const requestLog = saveContent(JSON.stringify(req.body, null, 2), 'json', 'image-request');
+    const requestLog = saveContent(JSON.stringify(req.body, null, 2), 'json');
     try {
         const result = await ai.models.generateContent({
             model: MODEL_GENERATE_IMAGE,
             contents: [{ parts: [{ text: prompt }] }],
             config: { temperature: 1.0, safetySettings: imageSafetySettings },
         });
-        const responseLog = saveContent(JSON.stringify(result, null, 2), 'json', 'image-response');
 
         // **CRITICAL FIX: Guard Clause**
         const imagePart = result?.candidates?.[0]?.content?.parts?.find((part: Part) => part.inlineData);
         if (imagePart && imagePart.inlineData) {
             const buffer = Buffer.from(imagePart.inlineData.data, 'base64');
             const url = saveImageAndGetUrl(buffer, imagePart.inlineData.mimeType);
-            res.json({ url, requestLog, responseLog });
+            res.json({ url, requestLog, responseLog: null });
         } else {
-            throw new Error("No image was generated for the asset. The prompt may have been blocked or invalid.");
+            const responseLog = saveContent(JSON.stringify(result, null, 2), 'json');
+            throw new Error(`No image was generated for the asset. The prompt may have been blocked or invalid. Full API response saved to /tmp/${responseLog}`);
         }
     } catch (error: any) {
         console.error("Error in /api/generate-image:", error);
@@ -125,7 +119,7 @@ app.post('/api/generate-image', async (req, res) => {
 // Endpoint to edit an image and generate a composite frame
 app.post('/api/generate-frame', async (req, res) => {
     const { imageUrl, prompt, reference_urls } = req.body;
-    const requestLog = saveContent(JSON.stringify({ prompt, imageUrl, reference_urls }, null, 2), 'json', 'frame-request');
+    const requestLog = saveContent(JSON.stringify({ prompt, imageUrl, reference_urls }, null, 2), 'json');
     try {
         const imagePath = path.join(process.cwd(), imageUrl.slice(1));
         const base64 = fs.readFileSync(imagePath, 'base64');
@@ -151,16 +145,16 @@ app.post('/api/generate-frame', async (req, res) => {
             contents: [{ parts: parts }],
             config: { temperature: 1.0, safetySettings: imageSafetySettings },
         });
-        const responseLog = saveContent(JSON.stringify(result, null, 2), 'json', 'frame-response');
 
         // **CRITICAL FIX: Guard Clause**
         const imagePart = result?.candidates?.[0]?.content?.parts?.find((part: Part) => part.inlineData);
         if (imagePart && imagePart.inlineData) {
             const buffer = Buffer.from(imagePart.inlineData.data, 'base64');
             const url = saveImageAndGetUrl(buffer, imagePart.inlineData.mimeType);
-            res.json({ url, requestLog, responseLog });
+            res.json({ url, requestLog, responseLog: null });
         } else {
-            throw new Error("No image was generated for the frame. The prompt may have been blocked or invalid.");
+            const responseLog = saveContent(JSON.stringify(result, null, 2), 'json');
+            throw new Error(`No image was generated for the frame. The prompt may have been blocked or invalid. Full API response saved to /tmp/${responseLog}`);
         }
     } catch (error: any) {
         console.error("Error in /api/generate-frame:", error);

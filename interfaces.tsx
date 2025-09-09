@@ -90,11 +90,13 @@ export interface LandingPageProps {
 
 export interface StorybookViewProps {
   story: StoredStory | null;
+  onImageClick: (url: string) => void;
 }
 
 export interface ImageGalleryViewProps {
   assets: { [key: string]: GeneratedAsset };
   frames: GeneratedAsset[][];
+  onImageClick: (url: string) => void;
 }
 
 export interface StoryCollectionViewProps {

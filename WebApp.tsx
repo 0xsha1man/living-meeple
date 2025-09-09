@@ -1,11 +1,12 @@
-import { FC, useEffect, useState } from 'react';
+import { FC, MouseEvent, useEffect, useState } from 'react';
 import { DebugLogView } from './DebugLogView';
 import { ImageGalleryView } from './ImageGalleryView';
 import { WebAppProps } from './interfaces';
 import { StorybookView } from './StorybookView';
 
 export const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, isLoading, realTimeAssets, realTimeFrames }) => {
-  const [activeTab, setActiveTab] = useState('storybook');
+  const [activeTab, setActiveTab] = useState<'storybook' | 'gallery' | 'debug'>('storybook');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const assets = story?.assets ?? realTimeAssets;
   const frames = story?.frames ?? realTimeFrames;
 
@@ -23,6 +24,23 @@ export const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, 
     }
   }, [isLoading, story]);
 
+  const handleCloseLightbox = (e: MouseEvent<HTMLElement>) => {
+    // Close if the overlay or the close button itself is clicked, but not the image
+    if (e.target === e.currentTarget) {
+      setSelectedImage(null);
+    }
+  };
+
+  const Lightbox = () => {
+    if (!selectedImage) return null;
+    return (
+      <div className="lightbox-overlay" onClick={handleCloseLightbox}>
+        <img src={selectedImage} alt="Full size view" className="lightbox-image" />
+        <button className="lightbox-close" onClick={() => setSelectedImage(null)}>&times;</button>
+      </div>
+    );
+  };
+
   return (
     <div className="webapp-container">
       <div className="webapp-header">
@@ -36,8 +54,8 @@ export const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, 
         <button onClick={onRestart} className="start-over-button"><i className="fas fa-undo"></i> Start Over</button>
       </nav>
       <main className="webapp-content">
-        {activeTab === 'storybook' && <StorybookView story={story} />}
-        {activeTab === 'gallery' && <ImageGalleryView assets={assets} frames={frames} />}
+        {activeTab === 'storybook' && <StorybookView story={story} onImageClick={setSelectedImage} />}
+        {activeTab === 'gallery' && <ImageGalleryView assets={assets} frames={frames} onImageClick={setSelectedImage} />}
         {/* {activeTab === 'collection' && <StoryCollectionView onSelectStory={onSelectStory} />} */}
         {activeTab === 'debug' && <>
           <div className="detail-card debug-note-card">
@@ -49,6 +67,7 @@ export const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, 
           <DebugLogView log={log} />
         </>}
       </main>
+      <Lightbox />
     </div>
   );
 };

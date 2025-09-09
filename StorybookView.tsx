@@ -2,7 +2,7 @@ import { FC, useEffect, useState } from 'react';
 import { StorybookViewProps } from './interfaces';
 
 // --- COMPONENT: StorybookView ---
-export const StorybookView: FC<StorybookViewProps> = ({ story }) => {
+export const StorybookView: FC<StorybookViewProps> = ({ story, onImageClick }) => {
   const [pageIndex, setPageIndex] = useState(0);
 
   useEffect(() => {
@@ -19,7 +19,7 @@ export const StorybookView: FC<StorybookViewProps> = ({ story }) => {
   return (
     <div className="storybook-view">
       <div className="storybook-main-content">
-        <div className="storybook-image-panel card">
+        <div className="storybook-image-panel card" onClick={() => finalImageForPage && onImageClick(finalImageForPage.url)}>
           {finalImageForPage ? (
             <img src={finalImageForPage.url} alt={currentPageData.description} />
           ) : (

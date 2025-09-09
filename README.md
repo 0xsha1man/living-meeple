@@ -1,8 +1,6 @@
-# Living Meeple
-
 ![Living Meeple Banner](/images/living_meeple_header.png)
 
-> ### 📜 Turn dense history into delightful, meeple-sized stories.
+### 📜 Turn dense history into delightful, meeple-sized stories.
 
 Living Meeple is an innovative AI-powered application designed to bridge the gap between dense historical texts and engaging learning experiences. It transforms dry historical accounts into simple, easy-to-digest visual storybooks, making history more accessible and fun for visual learners and younger audiences.
 

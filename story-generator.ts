@@ -105,7 +105,8 @@ export const generateStoryboardFrames = async (
   battlePlan: BattlePlan,
   assets: { [key: string]: GeneratedAsset },
   addLog: (message: string) => void,
-  setRealTimeFrames: React.Dispatch<React.SetStateAction<GeneratedAsset[][]>>
+  setRealTimeFrames: React.Dispatch<React.SetStateAction<GeneratedAsset[][]>>,
+  onProgress: (frameIndex: number) => void
 ): Promise<GeneratedAsset[][]> => {
   const allFrames: GeneratedAsset[][] = [];
 
@@ -168,6 +169,7 @@ export const generateStoryboardFrames = async (
       newFrames[i] = [...compositeImages];
       return newFrames;
     });
+    onProgress(i + 1);
   }
   return allFrames;
 };

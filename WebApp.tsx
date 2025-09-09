@@ -4,7 +4,7 @@ import { ImageGalleryView } from './ImageGalleryView';
 import { WebAppProps } from './interfaces';
 import { StorybookView } from './StorybookView';
 
-export const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, isLoading, realTimeAssets, realTimeFrames }) => {
+export const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, isLoading, realTimeAssets, realTimeFrames, generationMode, progress, progressText }) => {
   const [activeTab, setActiveTab] = useState<'storybook' | 'gallery' | 'debug'>('storybook');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const assets = story?.assets ?? realTimeAssets;
@@ -58,6 +58,25 @@ export const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, 
         {activeTab === 'gallery' && <ImageGalleryView assets={assets} frames={frames} onImageClick={setSelectedImage} />}
         {/* {activeTab === 'collection' && <StoryCollectionView onSelectStory={onSelectStory} />} */}
         {activeTab === 'debug' && <>
+          {generationMode !== 'full' && (
+            <div className="detail-card debug-note-card">
+              <h4><i className="fas fa-cogs"></i> Debug Mode Active</h4>
+              <p>
+                Generation is currently set to <strong>{generationMode}</strong> mode. The process will stop early.
+              </p>
+            </div>
+          )}
+          {isLoading && (
+            <div className="detail-card progress-card">
+              <h4><i className="fas fa-spinner fa-spin"></i> Generation Progress</h4>
+              <div className="progress-bar-container">
+                <div className="progress-bar" style={{ width: `${progress * 100}%` }}>
+                  {progress > 0 && `${Math.round(progress * 100)}%`}
+                </div>
+              </div>
+              <p className="progress-text">{progressText || 'Starting...'}</p>
+            </div>
+          )}
           <div className="detail-card debug-note-card">
             <h4><i className="fas fa-stopwatch"></i> A Note on Generation Speed</h4>
             <p>

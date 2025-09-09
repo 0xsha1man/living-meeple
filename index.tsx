@@ -6,6 +6,7 @@ import { useCallback, useRef, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 
 import { generateBattlePlan } from './api';
+import { APP_CONFIG } from './config';
 import { generateBaseAssets, generateStoryboardFrames } from './story-generator';
 
 import { Footer } from './Footer';
@@ -25,6 +26,8 @@ function App() {
 
   const [realTimeAssets, setRealTimeAssets] = useState<{ [key: string]: GeneratedAsset }>({});
   const [realTimeFrames, setRealTimeFrames] = useState<GeneratedAsset[][]>([]);
+  const [progress, setProgress] = useState(0);
+  const [progressText, setProgressText] = useState('');
 
   const addLog = useCallback((message: string) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -51,6 +54,8 @@ function App() {
     setCurrentStory(null);
     setRealTimeAssets({});
     setRealTimeFrames([]);
+    setProgress(0);
+    setProgressText('');
 
     const now = new Date();
     const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`;
@@ -63,10 +68,75 @@ function App() {
     let assets: { [key: string]: GeneratedAsset };
     let frames: GeneratedAsset[][];
 
+    let totalSteps = 0;
+    let completedSteps = 0;
+
     try {
+      addLog("Generating battle plan...");
+      setProgressText('Generating plan...');
       battlePlan = await generateBattlePlan(inputText, addLog);
-      assets = await generateBaseAssets(battlePlan, addLog, setRealTimeAssets);
-      frames = await generateStoryboardFrames(battlePlan, assets, addLog, setRealTimeFrames);
+
+      const numMeeples = battlePlan.factions.length;
+      const numMapLayers = battlePlan.maps.length * 2; // features + landmarks
+      const numFrames = battlePlan.storyboard.length;
+      totalSteps = 1 + numMeeples + numMapLayers + numFrames;
+
+      completedSteps = 1;
+      setProgress(completedSteps / totalSteps);
+      setProgressText(`Plan generated (${battlePlan.storyboard.length} frames)`);
+
+      if (APP_CONFIG.generationMode === 'plan-only') {
+        addLog("Generation stopped after creating BattlePlan (plan-only mode).");
+        const newStory: StoredStory = {
+          id: new Date().toISOString(),
+          name: battlePlan.battle_identification.name,
+          plan: battlePlan,
+          assets: {},
+          frames: []
+        };
+        setCurrentStory(newStory);
+        setIsLoading(false);
+        setProgress(1);
+        setProgressText('Complete (plan-only mode)');
+        return;
+      }
+
+      let assetCount = 0;
+      const updateAssetProgress = (assets: { [key: string]: GeneratedAsset }) => {
+        setRealTimeAssets(assets);
+        const currentAssetCount = Object.keys(assets).length;
+        if (currentAssetCount > assetCount) {
+          assetCount = currentAssetCount;
+          completedSteps++;
+          setProgress(completedSteps / totalSteps);
+          setProgressText(`Generating asset ${assetCount} of ${numMeeples + numMapLayers}`);
+        }
+      };
+
+      assets = await generateBaseAssets(battlePlan, addLog, updateAssetProgress);
+
+      if (APP_CONFIG.generationMode === 'assets-only') {
+        addLog("Generation stopped after creating base assets (assets-only mode).");
+        const newStory: StoredStory = {
+          id: new Date().toISOString(),
+          name: battlePlan.battle_identification.name,
+          plan: battlePlan,
+          assets,
+          frames: []
+        };
+        setCurrentStory(newStory);
+        setIsLoading(false);
+        setProgress(1);
+        setProgressText('Complete (assets-only mode)');
+        return;
+      }
+
+      frames = await generateStoryboardFrames(battlePlan, assets, addLog, setRealTimeFrames, (frameIndex) => {
+        // The number of completed steps is: plan (1) + all assets + current frame
+        completedSteps = 1 + numMeeples + numMapLayers + frameIndex;
+        setProgress(completedSteps / totalSteps);
+        setProgressText(`Generating frame ${frameIndex} of ${numFrames}`);
+      });
 
       const newStory: StoredStory = {
         id: new Date().toISOString(),
@@ -122,6 +192,9 @@ function App() {
           isLoading={isLoading}
           realTimeAssets={realTimeAssets}
           realTimeFrames={realTimeFrames}
+          generationMode={APP_CONFIG.generationMode}
+          progress={progress}
+          progressText={progressText}
         />}
       </main>
       <Footer />

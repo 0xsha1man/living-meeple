@@ -89,12 +89,11 @@ export const executeImageEdit = async (currentImage: GeneratedAsset, prompt: str
  * @param context Optional additional context to prepend to the system instruction.
  * @returns A promise that resolves to the parsed JSON part of the plan.
  */
-const generatePlanPart = async (inputText: string, instruction: string, schema: any, addLog: (message: string) => void, partName: string, context?: string) => {
-  const fullInstruction = context ? `${context}\n\n${instruction}` : instruction;
+const generatePlanPart = async (inputText: string, instruction: string, schema: any, addLog: (message: string) => void, partName: string) => {
   const response = await fetch(`${API_BASE_URL}/api/generate-plan`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ inputText, SYSTEM_INSTRUCTION: fullInstruction, schema, safetySettings, partName }),
+    body: JSON.stringify({ inputText, SYSTEM_INSTRUCTION: instruction, schema, safetySettings, partName }),
   });
   addLog(`Plan part generation for '${partName}' response status: ${response.status}`);
   if (!response.ok) {
@@ -126,16 +125,16 @@ export const generateBattlePlan = async (inputText: string, addLog: (message: st
   await sleep(PLAN_GENERATION_DELAY_MS);
 
   addLog("Step 2: Generating map details...");
-  const mapsContext = `The following text describes the Battle of ${baseInfo.battle_identification.name}.`;
-  const mapsInfo: { maps: MapAsset[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_MAPS, maps_schema, addLog, 'maps', mapsContext);
+  // The map generator is now expected to derive all context from the full user text.
+  const mapsInfo: { maps: MapAsset[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_MAPS, maps_schema, addLog, 'maps');
   addLog(` -> Received ${mapsInfo.maps.length} map definitions.`);
 
   addLog(`Waiting ${PLAN_GENERATION_DELAY_MS / 1000}s before next step...`);
   await sleep(PLAN_GENERATION_DELAY_MS);
 
   addLog("Step 3: Generating storyboard frames...");
-  const storyboardContext = `Based on the following summary, create a storyboard: "${baseInfo.battle_identification.narrative_summary}"`;
-  const storyboardInfo: { storyboard: StoryboardFrame[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_STORYBOARD, storyboard_schema, addLog, 'storyboard', storyboardContext);
+  // The storyboard generator is given the full, original text to extract all key moments for the frames.
+  const storyboardInfo: { storyboard: StoryboardFrame[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_STORYBOARD, storyboard_schema, addLog, 'storyboard');
   addLog(` -> Received ${storyboardInfo.storyboard.length} storyboard frames.`);
 
   const battlePlan: BattlePlan = { ...baseInfo, ...mapsInfo, ...storyboardInfo };

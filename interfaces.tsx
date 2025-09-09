@@ -107,6 +107,9 @@ export interface DebugLogViewProps {
   log: { timestamp: string, message: string }[];
 }
 
+export type GenerationMode = 'full' | 'plan-only' | 'assets-only';
+
+
 export interface WebAppProps {
   story: StoredStory | null;
   log: { timestamp: string, message: string }[];
@@ -115,4 +118,7 @@ export interface WebAppProps {
   isLoading: boolean;
   realTimeAssets: { [key: string]: GeneratedAsset };
   realTimeFrames: GeneratedAsset[][];
+  generationMode: GenerationMode;
+  progress: number;
+  progressText: string;
 }

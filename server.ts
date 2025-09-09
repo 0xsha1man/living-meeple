@@ -1,5 +1,5 @@
 // server.ts
-import { GoogleGenAI, Modality, Part } from '@google/genai';
+import { GoogleGenAI, HarmBlockThreshold, HarmCategory, Part } from '@google/genai';
 import cors from 'cors';
 import crypto from 'crypto';
 import 'dotenv/config';
@@ -29,6 +29,8 @@ if (!apiKey) {
 
 const ai = new GoogleGenAI({ apiKey });
 
+const imageSafetySettings = [{ category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE }, { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE }, { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE }, { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }];
+
 function saveImageAndGetUrl(buffer: Buffer, mimeType: string): string {
   const hash = crypto.createHash('sha256').update(buffer).digest('hex');
   const extension = mimeType.split('/')[1] || 'png';
@@ -38,6 +40,21 @@ function saveImageAndGetUrl(buffer: Buffer, mimeType: string): string {
   // Return a URL path that the client can use
   return `/tmp/${fileName}`;
 }
+
+let requestCounter = 0;
+const saveContent = (content: string, extension: 'json' | 'txt', name: string): string => {
+  // Reset counter for each story generation to keep numbers small
+  if (name.startsWith('plan-request')) {
+    requestCounter = 0;
+  }
+  const count = ++requestCounter;
+  const fileName = `${String(count).padStart(3, '0')}-${name}.${extension}`;
+  const filePath = path.join(TMP_DIR, fileName);
+  fs.writeFileSync(filePath, content);
+  // Return just the filename for logging
+  return fileName;
+};
+
 
 function lookupMime(filename: string): string {
   const ext = path.extname(filename).toLowerCase();
@@ -59,6 +76,7 @@ app.post('/api/generate-plan', async (req, res) => {
         // 4. On subsequent requests, using the stored `cachedContent.name` in the `generateContent` call
         //    instead of passing the full `systemInstruction` and `schema` again.
         //    e.g., const result = await ai.models.generateContent({ model: MODEL_GENERATE_PLAN, cachedContent: cache.name, ... })
+        const requestLog = saveContent(JSON.stringify(req.body, null, 2), 'json', 'plan-request');
         const result = await ai.models.generateContent({
             model: MODEL_GENERATE_PLAN,
             contents: [{ parts: [{ text: inputText }] }],
@@ -69,7 +87,8 @@ app.post('/api/generate-plan', async (req, res) => {
         if (!result.text) {
             throw new Error("Invalid or empty plan received from the API.");
         }
-        res.json(JSON.parse(result.text));
+        const responseLog = saveContent(result.text, 'json', 'plan-response');
+        res.json({ ...JSON.parse(result.text), requestLog, responseLog });
     } catch (error: any) {
         console.error("Error in /api/generate-plan:", error);
         res.status(500).json({ error: error.message });
@@ -79,21 +98,22 @@ app.post('/api/generate-plan', async (req, res) => {
 // Endpoint to generate a single base asset image
 app.post('/api/generate-image', async (req, res) => {
     const { prompt } = req.body;
+    const requestLog = saveContent(JSON.stringify(req.body, null, 2), 'json', 'image-request');
     try {
         const result = await ai.models.generateContent({
             model: MODEL_GENERATE_IMAGE,
             contents: [{ parts: [{ text: prompt }] }],
-            config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
+            config: { temperature: 1.0, safetySettings: imageSafetySettings },
         });
+        const responseLog = saveContent(JSON.stringify(result, null, 2), 'json', 'image-response');
 
         // **CRITICAL FIX: Guard Clause**
         const imagePart = result?.candidates?.[0]?.content?.parts?.find((part: Part) => part.inlineData);
         if (imagePart && imagePart.inlineData) {
             const buffer = Buffer.from(imagePart.inlineData.data, 'base64');
             const url = saveImageAndGetUrl(buffer, imagePart.inlineData.mimeType);
-            res.json({ url });
+            res.json({ url, requestLog, responseLog });
         } else {
-            console.error("Invalid response from Image API:", JSON.stringify(result, null, 2));
             throw new Error("No image was generated for the asset. The prompt may have been blocked or invalid.");
         }
     } catch (error: any) {
@@ -104,7 +124,8 @@ app.post('/api/generate-image', async (req, res) => {
 
 // Endpoint to edit an image and generate a composite frame
 app.post('/api/generate-frame', async (req, res) => {
-    const { imageUrl, prompt, style_reference_url } = req.body;
+    const { imageUrl, prompt, reference_urls } = req.body;
+    const requestLog = saveContent(JSON.stringify({ prompt, imageUrl, reference_urls }, null, 2), 'json', 'frame-request');
     try {
         const imagePath = path.join(process.cwd(), imageUrl.slice(1));
         const base64 = fs.readFileSync(imagePath, 'base64');
@@ -114,10 +135,13 @@ app.post('/api/generate-frame', async (req, res) => {
             { inlineData: { data: base64, mimeType: mimeType } },
         ];
 
-        if (style_reference_url) {
-            const stylePath = path.join(process.cwd(), 'public', style_reference_url.slice(1));
-            const style_reference_base64 = fs.readFileSync(stylePath, 'base64');
-            parts.push({ inlineData: { data: style_reference_base64, mimeType: 'image/jpeg' } });
+        if (reference_urls && Array.isArray(reference_urls)) {
+            for (const refUrl of reference_urls) {
+                const refPath = path.join(process.cwd(), refUrl.slice(1));
+                const refBase64 = fs.readFileSync(refPath, 'base64');
+                const refMimeType = lookupMime(refPath);
+                parts.push({ inlineData: { data: refBase64, mimeType: refMimeType } });
+            }
         }
 
         parts.push({ text: prompt });
@@ -125,17 +149,17 @@ app.post('/api/generate-frame', async (req, res) => {
         const result = await ai.models.generateContent({
             model: MODEL_GENERATE_IMAGE,
             contents: [{ parts: parts }],
-            config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
+            config: { temperature: 1.0, safetySettings: imageSafetySettings },
         });
+        const responseLog = saveContent(JSON.stringify(result, null, 2), 'json', 'frame-response');
 
         // **CRITICAL FIX: Guard Clause**
         const imagePart = result?.candidates?.[0]?.content?.parts?.find((part: Part) => part.inlineData);
         if (imagePart && imagePart.inlineData) {
             const buffer = Buffer.from(imagePart.inlineData.data, 'base64');
             const url = saveImageAndGetUrl(buffer, imagePart.inlineData.mimeType);
-            res.json({ url });
+            res.json({ url, requestLog, responseLog });
         } else {
-            console.error("Invalid response from Image API during frame generation:", JSON.stringify(result, null, 2));
             throw new Error("No image was generated for the frame. The prompt may have been blocked or invalid.");
         }
     } catch (error: any) {
@@ -144,6 +168,24 @@ app.post('/api/generate-frame', async (req, res) => {
     }
 });
 
+app.post('/api/save-log', (req, res) => {
+    const { filename, content } = req.body;
+    if (!filename || typeof content !== 'string') {
+        return res.status(400).json({ error: 'Filename and content are required.' });
+    }
+    try {
+        const filePath = path.join(TMP_DIR, filename);
+        // Basic sanitization to prevent path traversal
+        if (path.dirname(filePath) !== TMP_DIR) {
+            throw new Error('Invalid filename');
+        }
+        fs.writeFileSync(filePath, content);
+        res.status(200).json({ message: 'Log saved' });
+    } catch (error: any) {
+        console.error("Error in /api/save-log:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 app.listen(PORT, () => {
     console.log(`✅ Living Meeple server is running on ${process.env.VITE_SERVER_URL || `http://localhost:${PORT}`}`);

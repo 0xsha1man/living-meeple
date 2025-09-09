@@ -19,7 +19,7 @@ export const LandingPage: FC<LandingPageProps> = ({ onStoryCreate, isLoading }) 
   return (
     <div className="landing-container">
       <div className="mascot-container">
-        <img src="images/mascot.png" alt="Elder Meeple, the historian mascot, reading a book" />
+        <img src="images/mascot.png" alt="Elder Meeple, the historian mascot, wearing a monocle and reading a history book." />
       </div>
       <div className="app-header">
         <img src="images/living_meeple_header.png" alt="Living Meeple" />
@@ -70,7 +70,7 @@ export const LandingPage: FC<LandingPageProps> = ({ onStoryCreate, isLoading }) 
               <li><strong>Explore:</strong> Watch history unfold, page by page!</li>
             </ol>
           </div>
-          <div className="detail-card" style={{ marginTop: '1.5rem' }}>
+          <div className="detail-card landing-note-card">
             <h4><i className="fas fa-stopwatch"></i> A Note on Speed</h4>
             <p>
               This demo uses the free tier of Google's Gemini API, which has rate limits. To respect these limits, a delay is added between each generation step. As a result, creating a full story may take several minutes. Thanks for your patience!

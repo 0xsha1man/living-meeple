@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 
 import { generateBattlePlan } from './api';
@@ -20,13 +20,18 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentStory, setCurrentStory] = useState<StoredStory | null>(null);
   const [debugLog, setDebugLog] = useState<{ timestamp: string, message: string }[]>([]);
+  const logFileContentRef = useRef('');
+  const logFilenameRef = useRef('');
 
   const [realTimeAssets, setRealTimeAssets] = useState<{ [key: string]: GeneratedAsset }>({});
   const [realTimeFrames, setRealTimeFrames] = useState<GeneratedAsset[][]>([]);
 
   const addLog = useCallback((message: string) => {
     const timestamp = new Date().toLocaleTimeString();
-    setDebugLog(prev => [...prev, { timestamp, message }]);
+    const logEntry = { timestamp, message };
+    const logLine = `[${timestamp}] ${message}\n`;
+    setDebugLog(prev => [...prev, logEntry]);
+    logFileContentRef.current += logLine;
   }, []);
 
   /**
@@ -46,6 +51,11 @@ function App() {
     setCurrentStory(null);
     setRealTimeAssets({});
     setRealTimeFrames([]);
+
+    const now = new Date();
+    const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`;
+    logFilenameRef.current = `debug-${timestamp}.log`;
+    logFileContentRef.current = ''; // Reset log content
 
     addLog("Starting story generation...");
 
@@ -73,6 +83,21 @@ function App() {
       console.error(err);
     } finally {
       setIsLoading(false);
+      addLog("Story generation finished.");
+      try {
+        await fetch('http://localhost:3001/api/save-log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: logFilenameRef.current,
+            content: logFileContentRef.current
+          })
+        });
+        addLog(`Full debug log saved to /tmp/${logFilenameRef.current}`);
+      } catch (logErr) {
+        addLog(`ERROR: Failed to save debug log to file.`);
+        console.error(logErr);
+      }
     }
   };
 

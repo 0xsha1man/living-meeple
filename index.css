@@ -45,6 +45,9 @@ p {
 
 .app-main-content {
   flex-grow: 1;
+  /* Make this a flex container so its children can grow */
+  display: flex;
+  flex-direction: column;
 }
 
 /* --- HEADER --- */
@@ -238,6 +241,10 @@ textarea::placeholder {
   opacity: 0.5;
 }
 
+.landing-note-card {
+  margin-top: 1.5rem;
+}
+
 .mascot-container img {
   max-width: 400px;
   height: auto;
@@ -272,7 +279,8 @@ textarea::placeholder {
 .webapp-header {
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--border-color);
-  margin-bottom: 1.5rem;
+  /* Make the header span across all grid columns */
+  grid-column: 1 / -1;
 }
 
 .webapp-header img {
@@ -283,6 +291,8 @@ textarea::placeholder {
 .webapp-container {
   display: grid;
   grid-template-columns: 240px 1fr;
+  /* Define rows for the header and the main body, allowing the body to grow */
+  grid-template-rows: auto 1fr;
   gap: 2.5rem;
   flex-grow: 1; /* Let it fill the remaining space */
   min-height: 0; /* Fix for flexbox overflow */

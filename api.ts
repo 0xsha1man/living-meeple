@@ -20,7 +20,7 @@ const PLAN_GENERATION_DELAY_MS = 5000; // 5 seconds
  * @param caption The caption to associate with the generated asset.
  * @returns A promise that resolves to a `GeneratedAsset` object.
  */
-export const executeImageGeneration = async (prompt: string, caption: string): Promise<GeneratedAsset> => {
+export const executeImageGeneration = async (prompt: string, caption: string, addLog: (message: string) => void): Promise<GeneratedAsset> => {
   const imageResponse = await fetch(`${API_BASE_URL}/api/generate-image`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -30,7 +30,8 @@ export const executeImageGeneration = async (prompt: string, caption: string): P
     const errorBody = await imageResponse.text();
     throw new Error(`Failed to generate image asset (${caption}): ${errorBody}`);
   }
-  const { url } = await imageResponse.json();
+  const { url, requestLog, responseLog } = await imageResponse.json();
+  addLog(` -> API logs saved to /tmp/${requestLog} and /tmp/${responseLog}`);
   return { url, caption };
 };
 
@@ -40,20 +41,20 @@ export const executeImageGeneration = async (prompt: string, caption: string): P
  * @param currentImage The base image to be edited.
  * @param prompt The text prompt describing the edit.
  * @param caption The caption for the resulting asset.
- * @param styleReference An optional image to use as a style guide.
+ * @param referenceAssets An optional array of images to use as references (e.g., style guides, character models).
  * @returns A promise that resolves to the new, edited `GeneratedAsset`.
  */
-export const executeImageEdit = async (currentImage: GeneratedAsset, prompt: string, caption: string, styleReference?: GeneratedAsset): Promise<GeneratedAsset> => {
+export const executeImageEdit = async (currentImage: GeneratedAsset, prompt: string, caption: string, addLog: (message: string) => void, referenceAssets?: GeneratedAsset[]): Promise<GeneratedAsset> => {
   const body: {
     imageUrl: string;
     prompt: string;
-    style_reference_url?: string;
+    reference_urls?: string[];
   } = {
     imageUrl: currentImage.url,
     prompt,
   };
-  if (styleReference) {
-    body.style_reference_url = styleReference.url;
+  if (referenceAssets && referenceAssets.length > 0) {
+    body.reference_urls = referenceAssets.map(asset => asset.url);
   }
   const editResponse = await fetch(`${API_BASE_URL}/api/generate-frame`, {
     method: 'POST',
@@ -64,7 +65,8 @@ export const executeImageEdit = async (currentImage: GeneratedAsset, prompt: str
     const errorBody = await editResponse.text();
     throw new Error(`Failed to generate frame step (${caption}): ${errorBody}`);
   }
-  const { url } = await editResponse.json();
+  const { url, requestLog, responseLog } = await editResponse.json();
+  addLog(` -> API logs saved to /tmp/${requestLog} and /tmp/${responseLog}`);
   return { url, caption };
 };
 
@@ -91,7 +93,9 @@ const generatePlanPart = async (inputText: string, instruction: string, schema: 
     const errorBody = await response.text();
     throw new Error(`Plan generation failed: ${errorBody}`);
   }
-  return response.json();
+  const { requestLog, responseLog, ...planData } = await response.json();
+  addLog(` -> Plan part logs saved to /tmp/${requestLog} and /tmp/${responseLog}`);
+  return planData;
 };
 
 /**

@@ -1,6 +1,6 @@
 export const PROMPT_TEMPLATES = {
   base: {
-    neutralBackground: `A top-down, flat-lay view of a simple, neutral, light-colored textured background. The texture should resemble clean, plain parchment or canvas, suitable for a children's history book illustration. The image must be a flat texture only, with no defined edges, borders, or map-like features. It must be very simple and uncluttered.`,
+    neutralBackground: `A simple, neutral, light-colored textured background. The image must be a flat texture only, with no defined edges or borders It must be very simple and uncluttered.`,
   },
   map: {
     features: `

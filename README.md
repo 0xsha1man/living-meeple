@@ -48,6 +48,18 @@ A second, practical challenge was working within the API's free-tier rate limits
 
 This project underscored the power of treating the AI not as a one-shot creator, but as a tool to be guided through a structured, layered workflow that respects both creative and technical constraints.
 
+## For Local Developers
+
+When you run this project locally, it creates a `/tmp` directory in the project root to aid in debugging and development. This directory contains:
+
+*   **Generated Images**: All images created during the process, including base maps, map layers, meeples, and the final composited storyboard frames.
+*   **API Call Logs**: For each call to the Gemini API, a pair of numbered JSON files are saved:
+    *   `XXX-request.json`: The exact JSON body sent to the API.
+    *   `XXX-response.json`: The full, raw JSON response received from the API.
+*   **Session Debug Log**: A timestamped log file (e.g., `debug-2024-10-27_14-30-05.log`) that contains the complete, human-readable log for the entire story generation session. The UI's "Debug Log" tab mirrors this content.
+
+This allows you to trace the entire generation process, inspect the data at each step, and easily debug any issues with planning or image generation.
+
 ## Technology Stack
 
 *   **Frontend**: React, TypeScript

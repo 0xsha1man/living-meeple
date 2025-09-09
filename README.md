@@ -1,6 +1,6 @@
 # Living Meeple
 
-![Living Meeple Banner](/images/card_image.png)
+![Living Meeple Banner](/images/living_meeple_header.png)
 
 **Turn dense history into delightful, meeple-sized stories.**
 

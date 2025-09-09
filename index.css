@@ -112,6 +112,7 @@ textarea {
   font-family: var(--font-family);
   font-size: 1rem;
   resize: none;
+  min-height: 250px;
 }
 
 textarea:focus {
@@ -128,7 +129,7 @@ textarea::placeholder {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 1.5rem;
+  margin-top: 0.5rem;
 }
 
 .example-action {
@@ -153,12 +154,18 @@ textarea::placeholder {
   color: var(--secondary-color);
 }
 
+.source-caption {
+  font-size: 0.8rem;
+  color: var(--text-muted-color);
+  align-self: center;
+}
+
 .source-link {
-  font-size: 0.9rem;
+  font-size: inherit;
   color: var(--text-muted-color);
   text-decoration: none;
-  position: relative;
-  top: 1px; /* Minor alignment adjustment */
+  position: static;
+  top: 0;
 }
 
 .source-link:hover {
@@ -194,11 +201,17 @@ textarea::placeholder {
   flex-grow: 1;
 }
 
+.left-panel h2,
 .instructions h2 {
   color: var(--primary-color);
   border-bottom: 2px solid var(--border-color);
   padding-bottom: 0.5rem;
   margin-top: 0;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .instructions ol {
@@ -218,14 +231,15 @@ textarea::placeholder {
 
 .mascot-container {
   position: absolute;
-  top: 10px;
-  left: -200px;
+  top: 50px;
+  left: -150px;
   z-index: -1;
   pointer-events: none; /* So it doesn't interfere with clicks */
+  opacity: 0.5;
 }
 
 .mascot-container img {
-  max-width: 300px;
+  max-width: 400px;
   height: auto;
   filter: none;
 }
@@ -254,12 +268,24 @@ textarea::placeholder {
   text-decoration: underline;
 }
 
+/* --- WEB APP HEADER --- */
+.webapp-header {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 1.5rem;
+}
+
+.webapp-header img {
+  height: 40px; /* Smaller header */
+}
+
 /* --- WEB APP MODE --- */
 .webapp-container {
   display: grid;
   grid-template-columns: 240px 1fr;
   gap: 2.5rem;
-  height: 90vh;
+  flex-grow: 1; /* Let it fill the remaining space */
+  min-height: 0; /* Fix for flexbox overflow */
 }
 
 .webapp-nav {
@@ -320,8 +346,12 @@ textarea::placeholder {
   padding: 2.5rem;
   border-radius: var(--border-radius);
   box-shadow: var(--card-shadow);
-  overflow-y: auto;
+  /* This caused the whole panel to scroll */
+  /* overflow-y: auto; */
   border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Let child elements control scrolling */
 }
 
 /* Storybook View */
@@ -329,6 +359,9 @@ textarea::placeholder {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .storybook-main-content {
@@ -396,6 +429,10 @@ textarea::placeholder {
   color: var(--text-color);
 }
 
+.debug-note-card {
+  margin-bottom: 1.5rem;
+}
+
 .storybook-controls {
   display: flex;
   justify-content: center;
@@ -437,6 +474,9 @@ textarea::placeholder {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1.5rem;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .gallery figure {
@@ -459,6 +499,9 @@ textarea::placeholder {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .story-card {
@@ -480,6 +523,12 @@ textarea::placeholder {
   color: var(--text-color);
 }
 
+.debug-log-view {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
 .debug-log-view pre {
   background-color: #1e2b38;
   color: #0f0;
@@ -488,6 +537,5 @@ textarea::placeholder {
   white-space: pre-wrap;
   word-break: break-all;
   font-family: monospace;
-  max-height: 60vh;
-  overflow-y: auto;
+  /* max-height and overflow are handled by the parent .debug-log-view now */
 }

@@ -6,17 +6,28 @@ import { StorybookView } from './StorybookView';
 
 export const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, isLoading, realTimeAssets, realTimeFrames }) => {
   const [activeTab, setActiveTab] = useState('storybook');
+  const assets = story?.assets ?? realTimeAssets;
+  const frames = story?.frames ?? realTimeFrames;
 
   useEffect(() => {
     if (isLoading) {
       setActiveTab('debug');
     } else if (story) {
-      setActiveTab('gallery'); // Default to gallery to see the base assets
+      // When the story is finished, it's often best to show the final product first.
+      // The user can then navigate to the gallery or debug log if they are curious.
+      setActiveTab('storybook');
+    } else {
+      // If loading is finished but there's no story (e.g. an error occurred),
+      // stay on the debug tab.
+      setActiveTab('debug');
     }
   }, [isLoading, story]);
 
   return (
     <div className="webapp-container">
+      <div className="webapp-header">
+        <img src="images/living_meeple_header.png" alt="Living Meeple" />
+      </div>
       <nav className="webapp-nav">
         <button onClick={() => setActiveTab('storybook')} className={activeTab === 'storybook' ? 'active' : ''}><i className="fas fa-book-reader"></i> Storybook</button>
         <button onClick={() => setActiveTab('gallery')} className={activeTab === 'gallery' ? 'active' : ''}><i className="fas fa-images"></i> Image Gallery</button>
@@ -26,10 +37,10 @@ export const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, 
       </nav>
       <main className="webapp-content">
         {activeTab === 'storybook' && <StorybookView story={story} />}
-        {activeTab === 'gallery' && <ImageGalleryView assets={realTimeAssets} frames={realTimeFrames} />}
+        {activeTab === 'gallery' && <ImageGalleryView assets={assets} frames={frames} />}
         {/* {activeTab === 'collection' && <StoryCollectionView onSelectStory={onSelectStory} />} */}
         {activeTab === 'debug' && <>
-          <div className="detail-card" style={{ marginBottom: '1.5rem' }}>
+          <div className="detail-card debug-note-card">
             <h4><i className="fas fa-stopwatch"></i> A Note on Generation Speed</h4>
             <p>
               This project runs on the free tier of Google's Gemini API, which has rate limits (e.g., 10 requests per minute for the image model). To avoid exceeding these limits, a deliberate delay has been engineered between each step of the generation process. This is why the story takes a few minutes to create. Thank you for your patience!

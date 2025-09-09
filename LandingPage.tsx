@@ -19,7 +19,7 @@ export const LandingPage: FC<LandingPageProps> = ({ onStoryCreate, isLoading }) 
   return (
     <div className="landing-container">
       <div className="mascot-container">
-        <img src="images/mascot.png" alt="A friendly historian meeple reading a book" />
+        <img src="images/mascot.png" alt="Elder Meeple, the historian mascot, reading a book" />
       </div>
       <div className="app-header">
         <img src="images/living_meeple_header.png" alt="Living Meeple" />
@@ -43,15 +43,17 @@ export const LandingPage: FC<LandingPageProps> = ({ onStoryCreate, isLoading }) 
                 <button type="button" onClick={handleInsertExample} className="example-link">
                   <i className="fas fa-file-alt"></i> Insert Example
                 </button>
-                <a
-                  href="https://openstax.org/books/us-history/pages/15-3-1863-the-changing-nature-of-the-war"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="source-link"
-                  title="Example text from OpenStax U.S. History, Chapter 15.3"
-                >
-                  from OpenStax
-                </a>
+                <small className="source-caption">
+                  (from <a
+                    href="https://openstax.org/books/us-history/pages/15-3-1863-the-changing-nature-of-the-war"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="source-link"
+                    title="Example text from OpenStax U.S. History, Chapter 15.3"
+                  >
+                    OpenStax
+                  </a>)
+                </small>
               </div>
               <button type="submit" disabled={!inputText.trim() || isLoading} className="create-story-button">
                 {isLoading ? 'Creating...' : 'Create Story'} <i className="fas fa-arrow-right"></i>

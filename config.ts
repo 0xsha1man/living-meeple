@@ -11,5 +11,5 @@ export const APP_CONFIG: {
   // 'full': normal generation
   // 'plan-only': stop after generating the BattlePlan JSON
   // 'assets-only': stop after generating base assets (maps, meeples)
-    generationMode: 'assets-only',
+    generationMode: 'full',
 };

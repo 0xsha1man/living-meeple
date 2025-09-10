@@ -66,6 +66,13 @@ export const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, 
               </p>
             </div>
           )}
+          <div className="detail-card debug-note-card">
+            <h4><i className="fas fa-stopwatch"></i> A Note on Generation Speed</h4>
+            <p>
+              This project runs on the free tier of Google's Gemini API, which has rate limits (e.g., 10 requests per minute for the image model). To avoid exceeding these limits, a deliberate delay has been engineered between each step of the generation process. This is why the story takes a few minutes to create. Thank you for your patience!
+            </p>
+          </div>
+          <DebugLogView log={log} />
           {isLoading && (
             <div className="detail-card progress-card">
               <h4><i className="fas fa-spinner fa-spin"></i> Generation Progress</h4>
@@ -77,13 +84,6 @@ export const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, 
               <p className="progress-text">{progressText || 'Starting...'}</p>
             </div>
           )}
-          <div className="detail-card debug-note-card">
-            <h4><i className="fas fa-stopwatch"></i> A Note on Generation Speed</h4>
-            <p>
-              This project runs on the free tier of Google's Gemini API, which has rate limits (e.g., 10 requests per minute for the image model). To avoid exceeding these limits, a deliberate delay has been engineered between each step of the generation process. This is why the story takes a few minutes to create. Thank you for your patience!
-            </p>
-          </div>
-          <DebugLogView log={log} />
         </>}
       </main>
       <Lightbox />

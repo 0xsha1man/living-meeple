@@ -6,13 +6,17 @@ import { BattleIdentification, BattlePlan, Faction, GeneratedAsset, MapAsset, St
 import { base_schema } from './schema/base_schema';
 import { maps_schema } from './schema/maps_schema';
 import { storyboard_schema } from './schema/storyboard_schema';
+import { storyState } from './story-state';
 import { sleep } from './utils';
 
-const API_BASE_URL = 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 const safetySettings = [{ category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }, { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }, { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }, { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }];
 
 // Delay to stay within API rate limits for the planning model.
 const PLAN_GENERATION_DELAY_MS = 5000; // 5 seconds
+
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 5000;
 
 /**
  * Generates a new image from a text prompt.
@@ -20,23 +24,41 @@ const PLAN_GENERATION_DELAY_MS = 5000; // 5 seconds
  * @param caption The caption to associate with the generated asset.
  * @returns A promise that resolves to a `GeneratedAsset` object.
  */
-export const executeImageGeneration = async (prompt: string, caption: string, addLog: (message: string) => void): Promise<GeneratedAsset> => {
-  const imageResponse = await fetch(`${API_BASE_URL}/api/generate-image`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt }),
-  });
-  if (!imageResponse.ok) {
-    const errorBody = await imageResponse.text();
-    throw new Error(`Failed to generate image asset (${caption}): ${errorBody}`);
+export const executeImageGeneration = async (prompt: string, caption: string): Promise<GeneratedAsset> => {
+  let retries = 0;
+  while (retries < MAX_RETRIES) {
+    try {
+      const imageResponse = await fetch(`${API_BASE_URL}/api/generate-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, caption }),
+      });
+      if (!imageResponse.ok) {
+        const errorBody = await imageResponse.text();
+        // Don't retry on client errors (4xx), but do on server errors (5xx)
+        if (imageResponse.status >= 400 && imageResponse.status < 500) {
+          throw new Error(`Failed to generate image asset (${caption}): ${errorBody}`);
+        }
+        throw new Error(`Server error on image generation (${caption}): ${errorBody}`);
+      }
+      const { url, uri, mimeType, requestLog, responseLog } = await imageResponse.json();
+      if (responseLog) {
+        storyState.addLog(` -> API logs saved to ${requestLog} and ${responseLog}`);
+      } else {
+        storyState.addLog(` -> API request log saved to ${requestLog}`);
+      }
+      return { url, uri, mimeType, caption };
+    } catch (error: any) {
+      retries++;
+      if (retries >= MAX_RETRIES) {
+        throw new Error(`Failed to generate image asset (${caption}) after ${MAX_RETRIES} retries: ${error.message}`);
+      }
+      storyState.addLog(` -> Attempt ${retries} failed for "${caption}". Retrying in ${RETRY_DELAY_MS / 1000}s...`);
+      await sleep(RETRY_DELAY_MS);
+    }
   }
-  const { url, requestLog, responseLog } = await imageResponse.json();
-  if (responseLog) {
-    addLog(` -> API logs saved to ${requestLog} and ${responseLog}`);
-  } else {
-    addLog(` -> API request log saved to ${requestLog}`);
-  }
-  return { url, caption };
+  // This path should not be reachable.
+  throw new Error(`Failed to generate image asset (${caption}) after ${MAX_RETRIES} retries.`);
 };
 
 /**
@@ -48,34 +70,54 @@ export const executeImageGeneration = async (prompt: string, caption: string, ad
  * @param referenceAssets An optional array of images to use as references (e.g., style guides, character models).
  * @returns A promise that resolves to the new, edited `GeneratedAsset`.
  */
-export const executeImageEdit = async (currentImage: GeneratedAsset, prompt: string, caption: string, addLog: (message: string) => void, referenceAssets?: GeneratedAsset[]): Promise<GeneratedAsset> => {
-  const body: {
-    imageUrl: string;
-    prompt: string;
-    reference_urls?: string[];
-  } = {
-    imageUrl: currentImage.url,
-    prompt,
-  };
-  if (referenceAssets && referenceAssets.length > 0) {
-    body.reference_urls = referenceAssets.map(asset => asset.url);
+export const executeImageEdit = async (currentImage: GeneratedAsset, prompt: string, caption: string, referenceAssets?: GeneratedAsset[]): Promise<GeneratedAsset> => {
+  let retries = 0;
+  while (retries < MAX_RETRIES) {
+    try {
+      const body: {
+        imageUri: string;
+        imageMimeType: string;
+        prompt: string;
+        caption: string;
+        reference_assets?: { uri: string; mimeType: string }[];
+      } = {
+        imageUri: currentImage.uri,
+        imageMimeType: currentImage.mimeType,
+        prompt,
+        caption,
+      };
+      if (referenceAssets && referenceAssets.length > 0) {
+        body.reference_assets = referenceAssets.map(asset => ({ uri: asset.uri, mimeType: asset.mimeType }));
+      }
+      const editResponse = await fetch(`${API_BASE_URL}/api/generate-frame`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!editResponse.ok) {
+        const errorBody = await editResponse.text();
+        if (editResponse.status >= 400 && editResponse.status < 500) {
+          throw new Error(`Failed to generate frame step (${caption}): ${errorBody}`);
+        }
+        throw new Error(`Server error on frame generation (${caption}): ${errorBody}`);
+      }
+      const { url, uri, mimeType, requestLog, responseLog } = await editResponse.json();
+      if (responseLog) {
+        storyState.addLog(` -> API logs saved to ${requestLog} and ${responseLog}`);
+      } else {
+        storyState.addLog(` -> API request log saved to ${requestLog}`);
+      }
+      return { url, uri, mimeType, caption };
+    } catch (error: any) {
+      retries++;
+      if (retries >= MAX_RETRIES) {
+        throw new Error(`Failed to generate frame step (${caption}) after ${MAX_RETRIES} retries: ${error.message}`);
+      }
+      storyState.addLog(` -> Attempt ${retries} failed for "${caption}". Retrying in ${RETRY_DELAY_MS / 1000}s...`);
+      await sleep(RETRY_DELAY_MS);
+    }
   }
-  const editResponse = await fetch(`${API_BASE_URL}/api/generate-frame`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!editResponse.ok) {
-    const errorBody = await editResponse.text();
-    throw new Error(`Failed to generate frame step (${caption}): ${errorBody}`);
-  }
-  const { url, requestLog, responseLog } = await editResponse.json();
-  if (responseLog) {
-    addLog(` -> API logs saved to ${requestLog} and ${responseLog}`);
-  } else {
-    addLog(` -> API request log saved to ${requestLog}`);
-  }
-  return { url, caption };
+  throw new Error(`Failed to generate frame step (${caption}) after ${MAX_RETRIES} retries.`);
 };
 
 /**
@@ -86,22 +128,22 @@ export const executeImageEdit = async (currentImage: GeneratedAsset, prompt: str
  * @param instruction The specific system instruction for this planning step.
  * @param schema The JSON schema the AI's response must conform to.
  * @param addLog A callback function for logging progress.
- * @param context Optional additional context to prepend to the system instruction.
+ * @param context Optional additional context to prepend to the system instruction. This is used to pass information from one planning step to the next.
  * @returns A promise that resolves to the parsed JSON part of the plan.
  */
-const generatePlanPart = async (inputText: string, instruction: string, schema: any, addLog: (message: string) => void, partName: string) => {
+const generatePlanPart = async (inputText: string, instruction: string, schema: any, partName: string) => {
   const response = await fetch(`${API_BASE_URL}/api/generate-plan`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ inputText, SYSTEM_INSTRUCTION: instruction, schema, safetySettings, partName }),
   });
-  addLog(`Plan part generation for '${partName}' response status: ${response.status}`);
+  storyState.addLog(`Plan part generation for '${partName}' response status: ${response.status}`);
   if (!response.ok) {
     const errorBody = await response.text();
     throw new Error(`Plan generation failed: ${errorBody}`);
   }
   const { requestLog, responseLog, ...planData } = await response.json();
-  addLog(` -> Plan part logs saved to ${requestLog} and ${responseLog}`);
+  storyState.addLog(` -> Plan part logs saved to ${requestLog} and ${responseLog}`);
   return planData;
 };
 
@@ -115,29 +157,29 @@ const generatePlanPart = async (inputText: string, instruction: string, schema: 
  * @param addLog A callback function for logging progress.
  * @returns A promise that resolves to the complete, assembled `BattlePlan`.
  */
-export const generateBattlePlan = async (inputText: string, addLog: (message: string) => void): Promise<BattlePlan> => {
-  addLog("Step 1: Generating base battle plan...");
-  const baseInfo: { battle_identification: BattleIdentification, factions: Faction[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_BASE, base_schema, addLog, 'base-info');
-  addLog(` -> Received Battle ID: ${baseInfo.battle_identification.name}`);
-  addLog(` -> Received Factions: ${baseInfo.factions.map(f => f.name).join(', ')}`);
+export const generateBattlePlan = async (inputText: string): Promise<BattlePlan> => {
+  storyState.addLog("Step 1: Generating base battle plan...");
+  const baseInfo: { battle_identification: BattleIdentification, factions: Faction[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_BASE, base_schema, 'base-info');
+  storyState.addLog(` -> Received Battle ID: ${baseInfo.battle_identification.name}`);
+  storyState.addLog(` -> Received Factions: ${baseInfo.factions.map(f => f.name).join(', ')}`);
 
-  addLog(`Waiting ${PLAN_GENERATION_DELAY_MS / 1000}s before next step...`);
+  storyState.addLog(`Waiting ${PLAN_GENERATION_DELAY_MS / 1000}s before next step...`);
   await sleep(PLAN_GENERATION_DELAY_MS);
 
-  addLog("Step 2: Generating map details...");
+  storyState.addLog("Step 2: Generating map details...");
   // The map generator is now expected to derive all context from the full user text.
-  const mapsInfo: { maps: MapAsset[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_MAPS, maps_schema, addLog, 'maps');
-  addLog(` -> Received ${mapsInfo.maps.length} map definitions.`);
+  const mapsInfo: { maps: MapAsset[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_MAPS, maps_schema, 'maps');
+  storyState.addLog(` -> Received ${mapsInfo.maps.length} map definitions.`);
 
-  addLog(`Waiting ${PLAN_GENERATION_DELAY_MS / 1000}s before next step...`);
+  storyState.addLog(`Waiting ${PLAN_GENERATION_DELAY_MS / 1000}s before next step...`);
   await sleep(PLAN_GENERATION_DELAY_MS);
 
-  addLog("Step 3: Generating storyboard frames...");
+  storyState.addLog("Step 3: Generating storyboard frames...");
   // The storyboard generator is given the full, original text to extract all key moments for the frames.
-  const storyboardInfo: { storyboard: StoryboardFrame[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_STORYBOARD, storyboard_schema, addLog, 'storyboard');
-  addLog(` -> Received ${storyboardInfo.storyboard.length} storyboard frames.`);
+  const storyboardInfo: { storyboard: StoryboardFrame[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_STORYBOARD, storyboard_schema, 'storyboard');
+  storyState.addLog(` -> Received ${storyboardInfo.storyboard.length} storyboard frames.`);
 
   const battlePlan: BattlePlan = { ...baseInfo, ...mapsInfo, ...storyboardInfo };
-  addLog(`Complete plan received for: ${battlePlan.battle_identification.name}.`);
+  storyState.addLog(`Complete plan received for: ${battlePlan.battle_identification.name}.`);
   return battlePlan;
 };

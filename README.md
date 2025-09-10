@@ -10,6 +10,8 @@ Living Meeple is an innovative AI-powered application designed to bridge the gap
 
 > Click the thumbnail above to watch a video demonstration of the project.
 
+![Living Meeple Demo](/images/living_meeple_demo.gif)
+> An animated demonstration of a generated storyboard.
 ## The Problem
 
 History is fascinating, but textbooks and historical documents are often presented in dense, text-heavy formats that can be daunting. The key events, troop movements, and strategic decisions can get lost in the narrative, making it difficult for many to comprehend and connect with the past.
@@ -20,27 +22,28 @@ Living Meeple's core innovation is its use of a "cell animation" or "layered" st
 
 This project was built for the **Kaggle Nano-Banana Competition**, leveraging Google's new Gemini models to orchestrate this entire process.
 
-### <font color="#00a0a0">How It Works</font>
+### How It Works
 
 The process is analogous to a movie production pipeline, with different AI models playing specialized roles:
+1.  **The Analyst (Gemini 2.0 Flash)**: You paste in a historical text. The `gemini-2.0-flash` model acts as the Analyst, reading the text and deconstructing it into a detailed `BattlePlan` in JSON format. This structured plan is the blueprint for the visual story, defining every faction, asset, and action required for each frame.
 
-1.  <font color="#00a0a0">**The Director (Gemini 2.0 Flash)**</font>: You paste in a historical text. The `gemini-2.0-flash-lite` model acts as the Director, reading the text and creating a detailed `BattlePlan` in JSON format. This plan is a shot-list for our image model, breaking the narrative into a frame-by-frame storyboard and defining every visual element needed.
+1.  **The Analyst (Gemini 2.0 Flash)**: You paste in a historical text. The `gemini-2.0-flash-lite` model acts as the Analyst, reading the text and deconstructing it into a detailed `BattlePlan` in JSON format. This structured plan is the blueprint for the visual story, defining every faction, asset, and action required for each frame.
 
-2.  <font color="#00a0a0">**The Art Department (Gemini 2.5 Flash Image Preview)**</font>: The application then acts as the Art Department, using the `gemini-2.5-flash-image-preview` model's image generation capabilities to create a consistent set of assets. This is where the Nano-Banana model's power shines:
-    *   It designs unique meeple figures for each faction. **Crucially, these generated meeples are then used as reference images for all subsequent placements**, solving the difficult problem of character consistency across the story.
-    *   It generates a base map by layering topographical features and landmarks, using a `cartography_style_guide.jpg` image as a style reference to ensure a uniform, kid-friendly art style.
+2.  **The Cartographer (Gemini 2.5 Flash Image Preview)**: The application then acts as the Cartographer, using the `gemini-2.5-flash-image-preview` model's image generation capabilities to create a consistent set of assets. This is where the Nano-Banana model's power shines:
+    *   It designs unique meeple figures for each faction. **Crucially, these generated meeples are uploaded to the Google AI Files API, and their resulting URI is used as a reference image for all subsequent placements**, solving the difficult problem of character consistency across the story.
+    *   It generates a base map by layering topographical features and landmarks, using a `style_guide.png` as a style reference. This generated map is then **uploaded to the Google AI Files API**, and its URI becomes the canvas upon which the entire story unfolds.
 
-3.  <font color="#00a0a0">**The Animator (Gemini 2.5 Flash Image Preview)**</font>: Finally, the application becomes the Animator. For each page in the storyboard, it uses the **image editing (in-painting) capabilities** of the `gemini-2.5-flash-image-preview` model to:
-    *   Place the consistent meeple assets onto the map.
-    *   Draw arrows to represent movements like charges or flanking maneuvers.
-    *   Add labels for key locations.
-    *   Each action is a new layer, building up to the final image for that page of the story.
+3.  **The Storyteller (Gemini 2.5 Flash Image Preview)**: Finally, the application becomes the Storyteller, creating action-oriented frames for the storyboard. For each page, it uses the **image editing (in-painting) capabilities** of the `gemini-2.5-flash-image-preview` model. It sends the base map's File API URI and any reference assets (like the meeples) to the model, along with a prompt describing the desired change:
+    *   Placing the consistent meeple assets onto the map to show positions.
+    *   Drawing arrows to represent movements like charges or flanking maneuvers.
+    *   Adding labels for key locations to provide context.
+    *   Each action is a new layer, building up the final, dynamic image for that page of the story.
 
 The result is a clean, simple, and visually engaging storybook that makes history easier to grasp.
 
-## <font color="#f39c12">The Challenges and Learnings</font>
+## The Challenges and Learnings
 
-The primary challenge in any multi-image AI project is maintaining visual consistency. Early AI image tools struggled to redraw the same character or maintain a coherent style from one image to the next. Our key learning was to leverage the new image editing and reference image capabilities of the Gemini 2.5 Flash model. By generating a base asset (like a meeple) once and then using it as a reference for in-painting, we could ensure our "characters" remained identical throughout the story.
+The primary challenge in any multi-image AI project is maintaining visual consistency. Early AI image tools struggled to redraw the same character or maintain a coherent style from one image to the next. Our key learning was to leverage the new **Google AI Files API** in conjunction with the image editing capabilities of the Gemini 2.5 Flash model. By generating a base asset (like a meeple) once, uploading it to the Files API to get a stable URI, and then using that URI as a reference for in-painting, we could ensure our "characters" remained identical throughout the story.
 
 A second, practical challenge was working within the API's free-tier rate limits (e.g., 10 requests per minute for the image model, 30 RPM for the text model). Our layered approach, while powerful, makes many sequential API calls. To solve this, we engineered a deliberate delay between each request, pacing the application to respect the API quotas. This highlights a real-world engineering consideration when building production-ready AI applications.
 
@@ -70,8 +73,10 @@ To get the Living Meeple project running on your local machine, follow these ste
     The application requires a Google Gemini API key to function.
     *   Create a new file named `.env` in the root of the project directory.
     *   Add your Gemini API key to the `.env` file. You can get a key from Google AI Studio.
-        ```
+        ```.env
         GEMINI_API_KEY="your_api_key_here"
+        # The URL for the backend server, used by the frontend client.
+        VITE_SERVER_URL="http://localhost:3001"
         ```
 
 5.  **Run the Development Servers:**
@@ -108,16 +113,17 @@ This allows you to trace the entire generation process, inspect the data at each
 *   **Frontend**: React, TypeScript
 *   **Backend**: Node.js, Express
 *   **AI Planning Model**: Google Gemini 2.0 Flash (`gemini-2.0-flash-lite`)
+*   **AI Planning Model**: Google Gemini 2.0 Flash (`gemini-2.0-flash`)
 *   **AI Image Generation & Editing Model**: Google Gemini 2.5 Flash Image Preview (`gemini-2.5-flash-image-preview`)
 *   **Future Work**: Integration with ElevenLabs for AI-powered audio narration of the story.
 
 ---
 
-## <font color="#00a0a0">🏆 About the Nano-Banana Hackathon</font>
+## 🏆 About the Nano-Banana Hackathon
 
 This project was developed for the Kaggle Nano-Banana Competition to showcase the new **Gemini 2.5 Flash Image Preview** model's advanced capabilities. The core of Living Meeple is its demonstration of:
 *   **Image Editing & In-painting**: Building complex scenes layer-by-layer.
 *   **Style Consistency**: Using a reference image to guide the artistic style of the maps.
-*   **Character Consistency**: Generating a character asset (a meeple) once and using it as a reference to solve a classic AI image problem.
+*   **Character Consistency**: Generating a character asset (a meeple) once, uploading it via the **Files API**, and then using it as a reference to solve a classic AI image problem.
 
-The **Gemini 2.0 Flash** model plays the critical supporting role of the "Director," deconstructing unstructured text into a precise, machine-readable `BattlePlan`. This plan is what enables the highly-controlled, step-by-step use of the image model, demonstrating a powerful, multi-modal AI workflow.
+The **Gemini 2.0 Flash** model plays the critical supporting role of the "Analyst," deconstructing unstructured text into a precise, machine-readable `BattlePlan`. This plan is what enables the highly-controlled, step-by-step use of the image model, demonstrating a powerful, multi-modal AI workflow.

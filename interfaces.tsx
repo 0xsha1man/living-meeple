@@ -1,19 +1,18 @@
 export interface GeneratedAsset {
   url: string;
-  base64?: string;
-  mimeType?: string;
-  caption?: string;
+  uri: string;
+  mimeType: string;
+  caption: string;
 }
 
 export interface Placement {
-  faction_asset_name: string;
+  meeple_asset_name: string;
   location: string;
   amount: number;
   density: string;
 }
 
 export interface Movement {
-  faction_asset_name: string;
   starting_point: string;
   end_point: string;
   movement_type: string;
@@ -99,26 +98,19 @@ export interface ImageGalleryViewProps {
   onImageClick: (url: string) => void;
 }
 
-export interface StoryCollectionViewProps {
-  onSelectStory: (story: StoredStory) => void;
-}
-
 export interface DebugLogViewProps {
   log: { timestamp: string, message: string }[];
 }
 
 export type GenerationMode = 'full' | 'plan-only' | 'assets-only';
 
-
 export interface WebAppProps {
   story: StoredStory | null;
   log: { timestamp: string, message: string }[];
   onRestart: () => void;
-  onSelectStory: (story: StoredStory) => void;
   isLoading: boolean;
   realTimeAssets: { [key: string]: GeneratedAsset };
   realTimeFrames: GeneratedAsset[][];
-  generationMode: GenerationMode;
   progress: number;
   progressText: string;
 }

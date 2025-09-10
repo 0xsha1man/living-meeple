@@ -1,7 +1,7 @@
-import React from 'react';
 import { executeImageEdit, executeImageGeneration } from './api';
 import { PROMPT_TEMPLATES } from './data/prompts';
 import { BattlePlan, GeneratedAsset } from './interfaces';
+import { storyState } from './story-state';
 import { fillPromptTemplate, sleep } from './utils';
 
 // Delay to stay within API rate limits for the image generation model.
@@ -16,11 +16,25 @@ const IMAGE_GENERATION_DELAY_MS = 15000; // 15 seconds
  * @param addLog A callback function for logging progress.
  * @returns A promise that resolves to the loaded `GeneratedAsset`.
  */
-const loadStaticAsset = async (url: string, caption: string, addLog: (message: string) => void): Promise<GeneratedAsset> => {
-  addLog(`Using static asset: ${url}`);
-  // The server will resolve this path relative to its public directory.
+const loadStaticAsset = async (url: string, caption: string): Promise<GeneratedAsset> => {
+  storyState.addLog(`Uploading static asset: ${url}`);
+  const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
+  const response = await fetch(`${serverUrl}/api/upload-static-asset`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, caption }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Failed to upload static asset ${url}: ${errorBody}`);
+  }
+
+  const { uri, mimeType } = await response.json();
   return {
     url,
+    uri,
+    mimeType,
     caption,
   };
 };
@@ -41,49 +55,51 @@ const loadStaticAsset = async (url: string, caption: string, addLog: (message: s
  */
 export const generateBaseAssets = async (
   battlePlan: BattlePlan,
-  addLog: (message: string) => void,
-  setRealTimeAssets: React.Dispatch<React.SetStateAction<{ [key: string]: GeneratedAsset }>>
+  onAssetProgress: () => void
 ): Promise<{ [key: string]: GeneratedAsset }> => {
   const assets: { [key: string]: GeneratedAsset } = {};
 
-  addLog('Loading neutral map background...');
-  const neutralBgAsset = await loadStaticAsset('/images/map_base.png', 'Neutral Map Background', addLog);
-  setRealTimeAssets(prev => ({ ...prev, 'neutral_background': neutralBgAsset }));
+  storyState.addLog('Loading neutral map background...');
+  const neutralBgAsset = await loadStaticAsset('/images/map_base.png', 'Neutral Map Background');
+  storyState.addRealTimeAsset('neutral_background', neutralBgAsset);
 
-  addLog('Loading cartography style guide...');
-  const cartographyGuideAsset = await loadStaticAsset('/images/cartography_style_guide.jpg', 'Cartography Style Guide', addLog);
-  setRealTimeAssets(prev => ({ ...prev, 'cartography_guide': cartographyGuideAsset }));
+  storyState.addLog('Loading cartography style guide...');
+  const cartographyGuideAsset = await loadStaticAsset('/images/style_guide.png', 'Cartography Style Guide');
+  storyState.addRealTimeAsset('cartography_guide', cartographyGuideAsset);
 
   for (const map of battlePlan.maps) {
-    addLog(`Generating map asset: ${map.map_asset_name}`);
+    storyState.addLog(`Generating map asset: ${map.map_asset_name}`);
 
-    addLog(` -> Adding defining features for ${map.map_asset_name}`);
+    storyState.addLog(` -> Adding defining features for ${map.map_asset_name}`);
     const featuresPrompt = fillPromptTemplate(PROMPT_TEMPLATES.map.features, { description: map.defining_features_description });
-    let currentMap = await executeImageEdit(neutralBgAsset, featuresPrompt, `${map.map_type} Map - Features`, addLog, [cartographyGuideAsset]);
-    setRealTimeAssets(prev => ({ ...prev, [`${map.map_asset_name}_features`]: currentMap }));
-    addLog(`Waiting ${IMAGE_GENERATION_DELAY_MS / 1000}s before next step...`);
+    let currentMap = await executeImageEdit(neutralBgAsset, featuresPrompt, `${map.map_type.charAt(0).toUpperCase() + map.map_type.slice(1)} Map - Features`, [cartographyGuideAsset]);
+    storyState.addRealTimeAsset(`${map.map_asset_name}_features`, currentMap);
+    onAssetProgress();
+    storyState.addLog(`Waiting ${IMAGE_GENERATION_DELAY_MS / 1000}s before next step...`);
     await sleep(IMAGE_GENERATION_DELAY_MS);
 
-    addLog(` -> Adding key landmarks for ${map.map_asset_name}`);
+    storyState.addLog(` -> Adding key landmarks for ${map.map_asset_name}`);
     const landmarksPrompt = fillPromptTemplate(PROMPT_TEMPLATES.map.landmarks, { description: map.key_landmarks_description });
-    const finalMapAsset = await executeImageEdit(currentMap, landmarksPrompt, `${map.map_type.charAt(0).toUpperCase() + map.map_type.slice(1)} Map (Base Asset)`, addLog, [cartographyGuideAsset]);
+    const finalMapAsset = await executeImageEdit(currentMap, landmarksPrompt, `${map.map_type.charAt(0).toUpperCase() + map.map_type.slice(1)} Map (Base Asset)`, [cartographyGuideAsset]);
+    onAssetProgress();
 
     assets[map.map_asset_name] = finalMapAsset;
-    setRealTimeAssets(prev => ({ ...prev, [map.map_asset_name]: finalMapAsset }));
-    addLog(`Waiting ${IMAGE_GENERATION_DELAY_MS / 1000}s before next step...`);
+    storyState.addRealTimeAsset(map.map_asset_name, finalMapAsset);
+    storyState.addLog(`Waiting ${IMAGE_GENERATION_DELAY_MS / 1000}s before next step...`);
     await sleep(IMAGE_GENERATION_DELAY_MS);
   }
 
   for (const faction of battlePlan.factions) {
-    addLog(`Generating meeple asset for: ${faction.name}`);
-    const meepleAsset = await executeImageGeneration(faction.meeple_description, `${faction.name} Meeple (Base Asset)`, addLog);
+    storyState.addLog(`Generating meeple asset for: ${faction.name}`);
+    const meepleAsset = await executeImageGeneration(faction.meeple_description, `${faction.name} Meeple (Base Asset)`);
     assets[faction.meeple_asset_name] = meepleAsset;
-    setRealTimeAssets(prev => ({ ...prev, [faction.meeple_asset_name]: meepleAsset }));
-    addLog(`Waiting ${IMAGE_GENERATION_DELAY_MS / 1000}s before next step...`);
+    storyState.addRealTimeAsset(faction.meeple_asset_name, meepleAsset);
+    onAssetProgress();
+    storyState.addLog(`Waiting ${IMAGE_GENERATION_DELAY_MS / 1000}s before next step...`);
     await sleep(IMAGE_GENERATION_DELAY_MS);
   }
 
-  addLog("All base assets generated.");
+  storyState.addLog("All base assets generated.");
   return assets;
 };
 
@@ -104,15 +120,13 @@ export const generateBaseAssets = async (
 export const generateStoryboardFrames = async (
   battlePlan: BattlePlan,
   assets: { [key: string]: GeneratedAsset },
-  addLog: (message: string) => void,
-  setRealTimeFrames: React.Dispatch<React.SetStateAction<GeneratedAsset[][]>>,
   onProgress: (frameIndex: number) => void
 ): Promise<GeneratedAsset[][]> => {
   const allFrames: GeneratedAsset[][] = [];
 
   for (let i = 0; i < battlePlan.storyboard.length; i++) {
     const frame = battlePlan.storyboard[i];
-    addLog(`Compositing page ${i + 1} of ${battlePlan.storyboard.length}...`);
+    storyState.addLog(`Compositing page ${i + 1} of ${battlePlan.storyboard.length}...`);
 
     const compositeImages: GeneratedAsset[] = [];
     let currentImage: GeneratedAsset | null = assets[frame.base_asset];
@@ -123,52 +137,43 @@ export const generateStoryboardFrames = async (
 
     if (frame.placements) {
       for (const placement of frame.placements) {
-        addLog(` -> Placing ${placement.amount} ${placement.faction_asset_name} at ${placement.location}`);
-        const meepleAsset = assets[placement.faction_asset_name];
+        storyState.addLog(` -> Placing ${placement.amount} ${placement.meeple_asset_name} at ${placement.location}`);
+        const meepleAsset = assets[placement.meeple_asset_name];
         if (!meepleAsset) {
-          throw new Error(`Meeple asset "${placement.faction_asset_name}" not found.`);
+          throw new Error(`Meeple asset "${placement.meeple_asset_name}" not found.`);
         }
-        const prompt = fillPromptTemplate(PROMPT_TEMPLATES.storyboard.placement, { amount: placement.amount, assetName: placement.faction_asset_name, location: placement.location, density: placement.density });
-        currentImage = await executeImageEdit(currentImage, prompt, `Page ${i + 1} - Place ${placement.faction_asset_name}`, addLog, [meepleAsset]);
+        const prompt = fillPromptTemplate(PROMPT_TEMPLATES.storyboard.placement, { amount: placement.amount, meeple_asset_name: placement.meeple_asset_name, location: placement.location, density: placement.density });
+        currentImage = await executeImageEdit(currentImage, prompt, `Page ${i + 1} - Place ${placement.meeple_asset_name}`, [meepleAsset]);
         compositeImages.push(currentImage);
-        addLog(`Waiting ${IMAGE_GENERATION_DELAY_MS / 1000}s before next step...`);
+        storyState.addLog(`Waiting ${IMAGE_GENERATION_DELAY_MS / 1000}s before next step...`);
         await sleep(IMAGE_GENERATION_DELAY_MS);
       }
     }
 
     if (frame.movements) {
       for (const movement of frame.movements) {
-        addLog(` -> Adding movement arrows for ${movement.faction_asset_name} from ${movement.starting_point} to ${movement.end_point}`);
-        const meepleAsset = assets[movement.faction_asset_name];
-        if (!meepleAsset) {
-          throw new Error(`Meeple asset "${movement.faction_asset_name}" not found for movement.`);
-        }
-        const factionColor = movement.faction_asset_name.split('_')[1];
-        const prompt = fillPromptTemplate(PROMPT_TEMPLATES.storyboard.movement, { color: factionColor, start: movement.starting_point, type: movement.movement_type, end: movement.end_point });
-        currentImage = await executeImageEdit(currentImage, prompt, `Page ${i + 1} - Move ${movement.faction_asset_name}`, addLog, [meepleAsset]);
+        storyState.addLog(` -> Adding movement arrows from ${movement.starting_point} to ${movement.end_point}`);
+        const prompt = fillPromptTemplate(PROMPT_TEMPLATES.storyboard.movement, { starting_point: movement.starting_point, movement_type: movement.movement_type, end_point: movement.end_point });
+        currentImage = await executeImageEdit(currentImage, prompt, `Page ${i + 1} - Movement Arrows`);
         compositeImages.push(currentImage);
-        addLog(`Waiting ${IMAGE_GENERATION_DELAY_MS / 1000}s before next step...`);
+        storyState.addLog(`Waiting ${IMAGE_GENERATION_DELAY_MS / 1000}s before next step...`);
         await sleep(IMAGE_GENERATION_DELAY_MS);
       }
     }
 
     if (frame.labels) {
       for (const label of frame.labels) {
-        addLog(` -> Adding label "${label.text}" at ${label.location}`);
+        storyState.addLog(` -> Adding label "${label.text}" at ${label.location}`);
         const prompt = fillPromptTemplate(PROMPT_TEMPLATES.storyboard.label, { text: label.text, location: label.location });
-        currentImage = await executeImageEdit(currentImage, prompt, `Page ${i + 1} - Label ${label.text}`, addLog);
+        currentImage = await executeImageEdit(currentImage, prompt, `Page ${i + 1} - Label ${label.text}`);
         compositeImages.push(currentImage);
-        addLog(`Waiting ${IMAGE_GENERATION_DELAY_MS / 1000}s before next step...`);
+        storyState.addLog(`Waiting ${IMAGE_GENERATION_DELAY_MS / 1000}s before next step...`);
         await sleep(IMAGE_GENERATION_DELAY_MS);
       }
     }
 
     allFrames.push(compositeImages);
-    setRealTimeFrames(prev => {
-      const newFrames = [...prev];
-      newFrames[i] = [...compositeImages];
-      return newFrames;
-    });
+    storyState.updateRealTimeFrames(i, compositeImages);
     onProgress(i + 1);
   }
   return allFrames;

@@ -48,7 +48,7 @@ export const battle_plan_schema = {
                     },
                     meeple_description: {
                         type: Type.STRING,
-                        description: "MUST be a detailed prompt for generating the meeple image. It MUST describe a 'an illustration of a simple, wooden peg-like figure suitable for a board game in a solid matte [meeple_color] color. The figure has arms and a [meeple_feature] in a neutral, front-facing pose on a plain white background. The style MUST be suitable for a children's history textbook.'"
+                        description: "MUST be a detailed prompt for generating the meeple image. It MUST be the following string, with [meeple_feature] and [meeple_color] replaced with the values you have determined for this faction: \"An illustration of a simple, faceless, wooden peg-like figure in an A-pose, suitable for a board game. The figure has a [meeple_feature]. The style MUST be suitable for a children's history textbook and sketched completely in a solid [meeple_color] color pencil with a dark gray outline around the figure. It stands on a plain white background.\""
                     },
                 },
                 required: ["name", "meeple_color", "meeple_asset_name", "meeple_feature", "meeple_description"],
@@ -66,11 +66,11 @@ export const battle_plan_schema = {
                     },
                     defining_features_description: {
                         type: Type.STRING,
-                        description: "MUST be a description of the main topographical features of the area (e.g., 'a long, low ridge with a gentle slope to the east, and a prominent hill to the north with a wooded summit'). For a regional map, this should be a wider view."
+                        description: "A description of the main topographical features. MUST describe placement using simple directional terms relative to the canvas (e.g., 'a long ridge running from the top to the bottom in the center of the image'). MUST NOT contain any text, labels, or names intended to be drawn on the map itself."
                     },
                     key_landmarks_description: {
                         type: Type.STRING,
-                        description: "MUST be a description of specific, named landmarks within the area (e.g., 'a small cemetery on the ridge'). For a regional map, this should be major boundary lines for context."
+                        description: "A description of specific, named landmarks. MUST only describe WHAT to draw and WHERE to draw it on the canvas (e.g., 'a small orchard of peach trees in the center of the image'). MUST NOT include historical context or any text, labels, or names intended to be drawn on the map itself."
                     },
                     map_asset_name: {
                         type: Type.STRING,
@@ -83,7 +83,7 @@ export const battle_plan_schema = {
         },
         storyboard: {
             type: Type.ARRAY,
-            description: "MUST be a sequence of events that make up the battle's narrative.",
+            description: "MUST be a sequence of events that make up the battle's narrative, told as a visual story. Each frame should represent a key event as it begins to unfold, focusing on action and its outcome.",
             items: {
                 type: Type.OBJECT,
                 properties: {
@@ -105,12 +105,12 @@ export const battle_plan_schema = {
                         items: {
                             type: Type.OBJECT,
                             properties: {
-                                faction_asset_name: { type: Type.STRING, description: "The asset name of the faction to place (e.g., 'meeple_blue')." },
-                                location: { type: Type.STRING, description: "The location on the map to place the meeples (e.g., 'Culp\\'s Hill')." },
-                            amount: { type: Type.NUMBER, description: "The number of meeples to place." },
-                            density: { type: Type.STRING, description: "A brief description of the meeple density, like 'densely packed' or 'scattered'." }
+                                meeple_asset_name: { type: Type.STRING, description: "The asset name of the faction to place (e.g., 'meeple_blue')." },
+                                location: { type: Type.STRING, description: "The location on the image canvas to place the meeples. MUST use image-relative terms (e.g., 'left side of the image', 'near the bottom center'). MUST NOT use geopolitical names." },
+                                amount: { type: Type.NUMBER, description: "A small, representative number of meeples to place (between 3 and 10), reflecting the scale of the force described in the text." },
+                                density: { type: Type.STRING, description: "A brief description of the meeple arrangement and posture, like 'densely packed in an attacking formation' or 'scattered in a defensive line'." }
                             },
-                        required: ["faction_asset_name", "location", "amount", "density"]
+                            required: ["meeple_asset_name", "location", "amount", "density"]
                         }
                     },
                     movements: {
@@ -119,12 +119,11 @@ export const battle_plan_schema = {
                         items: {
                             type: Type.OBJECT,
                             properties: {
-                                faction_asset_name: { type: Type.STRING, description: "The asset name of the faction to move." },
-                            starting_point: { type: Type.STRING, description: "The starting location of the movement." },
-                            end_point: { type: Type.STRING, description: "The ending location of the movement." },
-                            movement_type: { type: Type.STRING, description: "A description of the movement's intent, e.g., 'flanking maneuver around Culp\\'s Hill' or 'direct charge towards Cemetery Ridge'." }
+                                starting_point: { type: Type.STRING, description: "The starting location of the movement. MUST originate from under the meeples being moved." },
+                                end_point: { type: Type.STRING, description: "The ending location of the movement." },
+                                movement_type: { type: Type.STRING, description: "A description of the movement's path and intent, e.g., 'a direct charge' or 'a curved flanking maneuver'." },
                             },
-                        required: ["faction_asset_name", "starting_point", "end_point", "movement_type"]
+                            required: ["starting_point", "end_point", "movement_type"]
                         }
                     },
                     labels: {

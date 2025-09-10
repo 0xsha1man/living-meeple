@@ -15,11 +15,11 @@ export const maps_schema = {
                     },
                     defining_features_description: {
                         type: Type.STRING,
-                        description: "MUST be a description of the main topographical features of the area (e.g., 'a long, low ridge with a gentle slope to the east, and a prominent hill to the north with a wooded summit'). For a regional map, this should be a wider view."
+                        description: "A description of the main topographical features. MUST describe placement using simple directional terms relative to the canvas (e.g., 'a long ridge running from the top to the bottom in the center of the image'). MUST NOT contain any text, labels, or names intended to be drawn on the map itself."
                     },
                     key_landmarks_description: {
                         type: Type.STRING,
-                        description: "MUST be a description of specific, named landmarks within the area (e.g., 'a small cemetery on the ridge'). For a regional map, this should be major boundary lines for context."
+                        description: "A description of specific, named landmarks. MUST only describe WHAT to draw and WHERE to draw it on the canvas (e.g., 'a small orchard of peach trees in the center of the image'). MUST NOT include historical context or any text, labels, or names intended to be drawn on the map itself."
                     },
                     map_asset_name: {
                         type: Type.STRING,

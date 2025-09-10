@@ -47,7 +47,7 @@ export const base_schema = {
                     },
                     meeple_description: {
                         type: Type.STRING,
-                        description: "MUST be a detailed prompt for generating the meeple image. It MUST describe a 'an illustration of a simple, wooden peg-like figure suitable for a board game in a solid matte [meeple_color] color. The figure has arms close to its body on its sides and a [meeple_feature] in a neutral, front-facing pose on a plain white background. The style MUST be suitable for a children's history textbook.'"
+                        description: "MUST be a detailed prompt for generating the meeple image. It MUST be the following string, with [meeple_feature] and [meeple_color] replaced with the values you have determined for this faction: \"An illustration of a simple, faceless, wooden peg-like figure in an A-pose, suitable for a board game. The figure has a [meeple_feature]. The style MUST be suitable for a children's history textbook and sketched completely in a solid [meeple_color] color pencil with a dark gray outline around the figure. It stands on a plain white background.\""
                     },
                 },
                 required: ["name", "meeple_color", "meeple_asset_name", "meeple_feature", "meeple_description"],

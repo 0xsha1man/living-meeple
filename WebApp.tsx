@@ -1,14 +1,20 @@
 import { FC, MouseEvent, useEffect, useState } from 'react';
+import { APP_CONFIG } from './config';
 import { DebugLogView } from './DebugLogView';
 import { ImageGalleryView } from './ImageGalleryView';
-import { WebAppProps } from './interfaces';
+import { StoredStory, WebAppProps } from './interfaces';
 import { StorybookView } from './StorybookView';
 
-export const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, isLoading, realTimeAssets, realTimeFrames, generationMode, progress, progressText }) => {
+export const WebApp: FC<WebAppProps> = ({ story, log, onRestart, isLoading, realTimeAssets, realTimeFrames, progress, progressText }) => {
   const [activeTab, setActiveTab] = useState<'storybook' | 'gallery' | 'debug'>('storybook');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const assets = story?.assets ?? realTimeAssets;
   const frames = story?.frames ?? realTimeFrames;
+  const { generationMode } = APP_CONFIG;
+
+  const handleSelectStory = (story: StoredStory) => {
+    alert("Reloading full stories from the collection is a feature for another day! For the hackathon, you can generate new stories or view the one you just created.");
+  };
 
   useEffect(() => {
     if (isLoading) {
@@ -56,7 +62,7 @@ export const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, 
       <main className="webapp-content">
         {activeTab === 'storybook' && <StorybookView story={story} onImageClick={setSelectedImage} />}
         {activeTab === 'gallery' && <ImageGalleryView assets={assets} frames={frames} onImageClick={setSelectedImage} />}
-        {/* {activeTab === 'collection' && <StoryCollectionView onSelectStory={onSelectStory} />} */}
+        {/* {activeTab === 'collection' && <StoryCollectionView onSelectStory={handleSelectStory} />} */}
         {activeTab === 'debug' && <>
           {generationMode !== 'full' && (
             <div className="detail-card debug-note-card">

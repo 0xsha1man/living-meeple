@@ -8,7 +8,7 @@ import { BATTLE_PLACEHOLDER } from '../data/textbook_placeholder';
 import { SCHEMAS } from '../schema/story_schema';
 import { sleep } from '../utils';
 
-const PLAN_GENERATION_DELAY_MS = 5000;
+const PLAN_GENERATION_DELAY_MS = 15000;
 
 /**
  * Generates a single part of the battle plan by calling the Gemini API.

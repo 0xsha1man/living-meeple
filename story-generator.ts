@@ -5,7 +5,7 @@ import { storyState } from './story-state';
 import { fillPromptTemplate, sleep } from './utils';
 
 // Delay to stay within API rate limits for the image generation model.
-const IMAGE_GENERATION_DELAY_MS = 15000; // 15 seconds
+const IMAGE_GENERATION_DELAY_MS = 20000; // 20 seconds
 
 /**
  * Fetches a static asset from a URL, converts it to base64, and returns it

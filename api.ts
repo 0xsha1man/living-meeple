@@ -8,7 +8,7 @@ const API_BASE_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 const safetySettings = [{ category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }, { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }, { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }, { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }];
 
 const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 5000;
+const RETRY_DELAY_MS = 20000;
 
 /**
  * Generates a new image from a text prompt.

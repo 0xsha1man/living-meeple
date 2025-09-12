@@ -1,6 +1,8 @@
+// This schema defines the structure for generating map assets.
+// It is used in conjunction with the system instructions in /data/system_instruction_maps.tsx
 import { Type } from '@google/genai';
 
-export const maps_schema = {
+export const MAPS = {
     type: Type.OBJECT,
     properties: {
         maps: {

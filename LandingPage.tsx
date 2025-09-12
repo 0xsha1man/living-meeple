@@ -1,5 +1,5 @@
 import React, { FC, useState } from 'react';
-import { BATTLE_PLACEHOLDER } from './data/battle_placeholder';
+import { BATTLE_PLACEHOLDER } from './data/textbook_placeholder.tsx';
 import { LandingPageProps } from './interfaces';
 
 export const LandingPage: FC<LandingPageProps> = ({ onStoryCreate, isLoading }) => {

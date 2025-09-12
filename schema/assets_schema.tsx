@@ -1,6 +1,8 @@
+// This schema defines the structure for the initial battle identification and faction asset generation.
+// It is used in conjunction with the system instructions in /data/system_instruction_assets.tsx
 import { Type } from '@google/genai';
 
-export const base_schema = {
+export const ASSETS = {
     type: Type.OBJECT,
     properties: {
         battle_identification: {

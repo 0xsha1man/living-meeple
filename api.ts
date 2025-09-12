@@ -1,17 +1,11 @@
 import { HarmBlockThreshold, HarmCategory } from '@google/genai';
-import { BATTLE_PLACEHOLDER } from './data/battle_placeholder';
-import { BattleIdentification, BattlePlan, Faction, GeneratedAsset, MapAsset, StoryboardFrame } from './interfaces';
-import { base_schema } from './schema/base_schema';
-import { maps_schema } from './schema/maps_schema';
-import { storyboard_schema } from './schema/storyboard_schema';
+import { BATTLE_PLACEHOLDER } from './data/textbook_placeholder';
+import { BattlePlan, GeneratedAsset, StoredStory } from './interfaces';
 import { storyState } from './story-state';
 import { sleep } from './utils';
 
 const API_BASE_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 const safetySettings = [{ category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }, { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }, { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }, { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }];
-
-// Delay to stay within API rate limits for the planning model.
-const PLAN_GENERATION_DELAY_MS = 5000; // 5 seconds
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 5000;
@@ -64,24 +58,28 @@ export const executeImageGeneration = async (prompt: string, caption: string): P
  * This is used for all layered image composition steps.
  * @param currentImage The base image to be edited.
  * @param prompt The text prompt describing the edit.
+ * @param promptKey A key identifying the deconstructed prompt to use (e.g., 'storyboard.placement').
+ * @param dynamicText The dynamic part of the prompt constructed by the client.
  * @param caption The caption for the resulting asset.
  * @param referenceAssets An optional array of images to use as references (e.g., style guides, character models).
  * @returns A promise that resolves to the new, edited `GeneratedAsset`.
  */
-export const executeImageEdit = async (currentImage: GeneratedAsset, prompt: string, caption: string, referenceAssets?: GeneratedAsset[]): Promise<GeneratedAsset> => {
+export const executeImageEdit = async (currentImage: GeneratedAsset, promptKey: string, dynamicText: string, caption: string, referenceAssets?: GeneratedAsset[]): Promise<GeneratedAsset> => {
   let retries = 0;
   while (retries < MAX_RETRIES) {
     try {
       const body: {
         imageUri: string;
         imageMimeType: string;
-        prompt: string;
+        promptKey: string;
+        dynamicText: string;
         caption: string;
         reference_assets?: { uri: string; mimeType: string }[];
       } = {
         imageUri: currentImage.uri,
         imageMimeType: currentImage.mimeType,
-        prompt,
+        promptKey,
+        dynamicText,
         caption,
       };
       if (referenceAssets && referenceAssets.length > 0) {
@@ -118,69 +116,170 @@ export const executeImageEdit = async (currentImage: GeneratedAsset, prompt: str
   throw new Error(`Failed to generate frame step (${caption}) after ${MAX_RETRIES} retries.`);
 };
 
+
 /**
- * A generic function to call the planning API for a specific part of the battle plan.
- * This allows for a modular approach where different instructions and schemas can be used
- * for different parts of the generation process.
+ * Requests the full battle plan from the server. The server will either return
+ * a cached version of the plan or generate a new one.
  * @param inputText The original user-provided text.
- * @param instruction The specific system instruction for this planning step.
- * @param schema The JSON schema the AI's response must conform to.
- * @param addLog A callback function for logging progress.
- * @param context Optional additional context to prepend to the system instruction. This is used to pass information from one planning step to the next.
- * @returns A promise that resolves to the parsed JSON part of the plan.
+ * @returns A promise that resolves to either a full cached story or a new plan to be generated.
  */
-const generatePlanPart = async (textPayload: { inputText: string } | { usePlaceholder: true }, instructionKey: 'base' | 'maps' | 'storyboard', schema: any, partName: string) => {
-  const response = await fetch(`${API_BASE_URL}/api/generate-plan`, {
+export const generateBattlePlan = async (inputText: string): Promise<{ plan: BattlePlan, cached: boolean, story?: StoredStory, storyHash?: string }> => {
+  const isPlaceholder = inputText === BATTLE_PLACEHOLDER;
+  const body = isPlaceholder ? { usePlaceholder: true } : { inputText };
+
+  storyState.addLog("Requesting battle plan from server...");
+  const response = await fetch(`${API_BASE_URL}/api/generate-full-plan`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...textPayload, instructionKey, schema, safetySettings, partName }),
+    body: JSON.stringify({ ...body, safetySettings }),
   });
-  storyState.addLog(`Plan part generation for '${partName}' response status: ${response.status}`);
-  if (!response.ok) {
+
+  if (!response.ok || !response.body) {
     const errorBody = await response.text();
-    throw new Error(`Plan generation failed: ${errorBody}`);
+    throw new Error(`Full plan generation failed: ${errorBody}`);
   }
-  const { requestLog, responseLog, ...planData } = await response.json();
-  storyState.addLog(` -> Plan part logs saved to ${requestLog} and ${responseLog}`);
-  return planData;
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  return new Promise((resolve, reject) => {
+    const processStream = async () => {
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) {
+            break;
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep the last, possibly incomplete, line
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const parsed = JSON.parse(line);
+              if (parsed.type === 'log') {
+                storyState.addLog(parsed.data);
+              } else if (parsed.type === 'result') {
+                const result = parsed.data;
+                if (result.cached) {
+                  resolve({ plan: result.story.plan, story: result.story, cached: true });
+                } else {
+                  resolve({ plan: result.plan, cached: false, storyHash: result.storyHash });
+                }
+                reader.cancel();
+                return;
+              } else if (parsed.type === 'error') {
+                reject(new Error(parsed.data.message));
+                reader.cancel();
+                return;
+              }
+            } catch (e) {
+              console.error('Failed to parse streaming chunk from server:', line, e);
+            }
+          }
+        }
+      } catch (error) {
+        reject(error);
+      }
+    };
+    processStream();
+  });
 };
 
 /**
- * Orchestrates the entire battle plan generation by breaking it into three sequential steps:
- * 1. Generate base identification and faction data.
- * 2. Generate map descriptions based on the battle name.
- * 3. Generate the storyboard frames based on the narrative summary.
- * This modular approach avoids hitting API token limits and allows for more focused AI tasks.
- * @param inputText The original user-provided text.
- * @param addLog A callback function for logging progress.
- * @returns A promise that resolves to the complete, assembled `BattlePlan`.
+ * Sends a completed story to the server to be cached for future requests.
+ * This should be called by the application after all assets for a new story
+ * have been successfully generated.
+ * @param storyHash The SHA-256 hash of the original input text.
+ * @param story The final, complete StoredStory object, including all asset URLs.
  */
-export const generateBattlePlan = async (inputText: string): Promise<BattlePlan> => {
-  const isPlaceholder = inputText === BATTLE_PLACEHOLDER;
-  const textPayload: { inputText: string } | { usePlaceholder: true } = isPlaceholder
-    ? { usePlaceholder: true }
-    : { inputText };
+export const cacheStory = async (storyHash: string, story: StoredStory): Promise<void> => {
+  storyState.addLog(`Caching story on server...`);
+  const response = await fetch(`${API_BASE_URL}/api/cache-story`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ storyHash, story }),
+  });
 
-  storyState.addLog("Step 1: Generating base battle plan...");
-  const baseInfo: { battle_identification: BattleIdentification, factions: Faction[] } = await generatePlanPart(textPayload, 'base', base_schema, 'base-info');
-  storyState.addLog(` -> Received Battle ID: ${baseInfo.battle_identification.name}`);
-  storyState.addLog(` -> Received Factions: ${baseInfo.factions.map(f => f.name).join(', ')}`);
+  if (!response.ok) {
+    const errorBody = await response.text();
+    storyState.addLog(` -> Failed to cache story: ${errorBody}`);
+    // We don't throw here, as failing to cache is not a critical error for the user.
+  } else {
+    storyState.addLog(` -> Story cached successfully.`);
+  }
+};
 
-  storyState.addLog(`Waiting ${PLAN_GENERATION_DELAY_MS / 1000}s before next step...`);
-  await sleep(PLAN_GENERATION_DELAY_MS);
+/**
+ * Fetches the collection of all previously generated (and cached) stories.
+ * @returns A promise that resolves to an array of `StoredStory` objects.
+ */
+export const getStoryCollection = async (): Promise<StoredStory[]> => {
+  storyState.addLog("Fetching story collection...");
+  const response = await fetch(`${API_BASE_URL}/api/stories`);
 
-  storyState.addLog("Step 2: Generating map details...");
-  const mapsInfo: { maps: MapAsset[] } = await generatePlanPart(textPayload, 'maps', maps_schema, 'maps');
-  storyState.addLog(` -> Received ${mapsInfo.maps.length} map definitions.`);
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Failed to fetch story collection: ${errorBody}`);
+  }
 
-  storyState.addLog(`Waiting ${PLAN_GENERATION_DELAY_MS / 1000}s before next step...`);
-  await sleep(PLAN_GENERATION_DELAY_MS);
+  const stories = await response.json();
+  storyState.addLog(` -> Found ${stories.length} cached stories.`);
+  return stories;
+};
 
-  storyState.addLog("Step 3: Generating storyboard frames...");
-  const storyboardInfo: { storyboard: StoryboardFrame[] } = await generatePlanPart(textPayload, 'storyboard', storyboard_schema, 'storyboard');
-  storyState.addLog(` -> Received ${storyboardInfo.storyboard.length} storyboard frames.`);
+/**
+ * Deletes a cached story file from the server.
+ * @param storyId The ID (hash) of the story to delete.
+ */
+export const deleteStory = async (storyId: string): Promise<void> => {
+  storyState.addLog(`Deleting story ${storyId}...`);
+  const response = await fetch(`${API_BASE_URL}/api/stories/${storyId}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Failed to delete story: ${errorBody}`);
+  }
+  storyState.addLog(` -> Story ${storyId} deleted.`);
+};
 
-  const battlePlan: BattlePlan = { ...baseInfo, ...mapsInfo, ...storyboardInfo };
-  storyState.addLog(`Complete plan received for: ${battlePlan.battle_identification.name}.`);
-  return battlePlan;
+/**
+ * Fetches the list of all files from the Google AI File API.
+ * @returns A promise that resolves to an array of file metadata objects.
+ */
+export const getFiles = async (): Promise<any[]> => {
+  storyState.addLog("Fetching file list from Google AI API...");
+  const response = await fetch(`${API_BASE_URL}/api/files`);
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Failed to fetch files: ${errorBody}`);
+  }
+  const files = await response.json();
+  storyState.addLog(` -> Found ${files.length} files.`);
+  return files;
+};
+
+/**
+ * Deletes a specific file from the Google AI File API.
+ * @param fileName The full name of the file (e.g., 'files/xxxxxx').
+ */
+export const deleteFile = async (fileName: string): Promise<void> => {
+  storyState.addLog(`Deleting file ${fileName} from Google AI API...`);
+  // The file ID is the part after "files/"
+  const fileId = fileName.split('/').pop();
+  if (!fileId) {
+    throw new Error("Invalid file name format.");
+  }
+  const response = await fetch(`${API_BASE_URL}/api/files/${fileId}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Failed to delete file: ${errorBody}`);
+  }
+  storyState.addLog(` -> File ${fileName} deleted.`);
 };

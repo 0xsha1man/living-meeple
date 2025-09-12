@@ -1,6 +1,8 @@
+// This schema defines the structure for generating the visual storyboard frames of the battle narrative.
+// It is used in conjunction with the system instructions in /data/system_instruction_storyboard.tsx
 import { Type } from '@google/genai';
 
-export const storyboard_schema = {
+export const STORYBOARD = {
     type: Type.OBJECT,
     properties: {
         storyboard: {

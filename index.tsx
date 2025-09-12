@@ -13,13 +13,13 @@ import { StoryLifecycleManager } from './story-lifecycle';
 import { storyState } from './story-state';
 import { WebApp } from './WebApp';
 
-// --- MAIN APP COMPONENT ---
 function App() {
   const [view, setView] = useState<'landing' | 'webapp'>('landing');
   const [isLoading, setIsLoading] = useState(false);
   const [currentStory, setCurrentStory] = useState<StoredStory | null>(null);
   const [debugLog, setDebugLog] = useState<{ timestamp: string, message: string }[]>([]);
 
+  const [logFilename, setLogFilename] = useState('');
   const [realTimeAssets, setRealTimeAssets] = useState<{ [key: string]: GeneratedAsset }>({});
   const [realTimeFrames, setRealTimeFrames] = useState<GeneratedAsset[][]>([]);
   const [progress, setProgress] = useState(0);
@@ -34,6 +34,7 @@ function App() {
       setRealTimeFrames(newState.realTimeFrames);
       setProgress(newState.progress);
       setProgressText(newState.progressText);
+      setLogFilename(newState.logFilename);
     };
 
     storyState.on('change', handleStateChange);
@@ -54,7 +55,7 @@ function App() {
           content: logFileContent
         })
       });
-      storyState.addLog(`Full debug log saved to /tmp/${logFilename}`);
+      storyState.addLog(`Full debug log saved to <a href="/tmp/${logFilename}" target="_blank" rel="noopener noreferrer">${logFilename}</a>`);
     } catch (logErr) {
       storyState.addLog(`ERROR: Failed to save debug log to file.`);
       console.error(logErr);
@@ -74,7 +75,7 @@ function App() {
   const handleCreateStory = async (inputText: string) => {
     storyState.reset();
     setView('webapp');
-    storyState.addLog("Starting story generation...");
+    storyState.addLog("[App] Starting story generation...");
 
     const lifecycleManager = new StoryLifecycleManager();
 
@@ -82,14 +83,17 @@ function App() {
       const finalStory = await lifecycleManager.generate(inputText);
       storyState.setFinalStory(finalStory);
       storyState.addLog("Storyboard generation complete!");
+      storyState.addLog("[App] Storyboard generation complete!");
       storyState.setProgress(1, 'Complete!');
     } catch (err: any) {
       storyState.addLog(`FATAL ERROR: ${err.message}`);
+      storyState.addLog(`[App] FATAL ERROR: ${err.message}`);
       console.error(err);
       storyState.setProgressText(`Error: ${err.message}`);
     } finally {
       storyState.setLoading(false);
       storyState.addLog("Story generation finished.");
+      storyState.addLog("[App] Story generation finished.");
       await saveLogFile();
     }
   };
@@ -97,6 +101,11 @@ function App() {
   const handleRestart = () => {
     storyState.setFinalStory(null);
     setView('landing');
+  };
+
+  const handleSelectStory = (selectedStory: StoredStory) => {
+    storyState.setFinalStory(selectedStory);
+    storyState.setLoading(false);
   };
 
   return (
@@ -107,11 +116,13 @@ function App() {
           story={currentStory}
           log={debugLog}
           onRestart={handleRestart}
+          onSelectStory={handleSelectStory}
           isLoading={isLoading}
           realTimeAssets={realTimeAssets}
           realTimeFrames={realTimeFrames}
           progress={progress}
           progressText={progressText}
+          logFilename={logFilename}
         />}
       </main>
       <Footer />

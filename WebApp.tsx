@@ -1,19 +1,35 @@
 import { FC, MouseEvent, useEffect, useState } from 'react';
 import { APP_CONFIG } from './config';
 import { DebugLogView } from './DebugLogView';
+import { FilesApiView } from './FilesApiView';
 import { ImageGalleryView } from './ImageGalleryView';
-import { StoredStory, WebAppProps } from './interfaces';
+import { GeneratedAsset, StoredStory } from './interfaces';
 import { StorybookView } from './StorybookView';
+import { StoryCollectionView } from './StoryCollectionView';
 
-export const WebApp: FC<WebAppProps> = ({ story, log, onRestart, isLoading, realTimeAssets, realTimeFrames, progress, progressText }) => {
-  const [activeTab, setActiveTab] = useState<'storybook' | 'gallery' | 'debug'>('storybook');
+export interface WebAppProps {
+  story: StoredStory | null;
+  log: { timestamp: string, message: string }[];
+  onRestart: () => void;
+  onSelectStory: (story: StoredStory) => void;
+  isLoading: boolean;
+  realTimeAssets: { [key: string]: GeneratedAsset };
+  realTimeFrames: any[][];
+  progress: number;
+  progressText: string;
+  logFilename: string;
+}
+
+export const WebApp: FC<WebAppProps> = ({ story, log, onRestart, onSelectStory, isLoading, realTimeAssets, realTimeFrames, progress, progressText, logFilename }) => {
+  const [activeTab, setActiveTab] = useState<'storybook' | 'gallery' | 'collection' | 'files' | 'debug'>('debug');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const assets = story?.assets ?? realTimeAssets;
   const frames = story?.frames ?? realTimeFrames;
   const { generationMode } = APP_CONFIG;
 
-  const handleSelectStory = (story: StoredStory) => {
-    alert("Reloading full stories from the collection is a feature for another day! For the hackathon, you can generate new stories or view the one you just created.");
+  const handleSelectStory = (selectedStory: StoredStory) => {
+    onSelectStory(selectedStory);
+    setActiveTab('storybook');
   };
 
   useEffect(() => {
@@ -55,20 +71,30 @@ export const WebApp: FC<WebAppProps> = ({ story, log, onRestart, isLoading, real
       <nav className="webapp-nav">
         <button onClick={() => setActiveTab('storybook')} className={activeTab === 'storybook' ? 'active' : ''}><i className="fas fa-book-reader"></i> Storybook</button>
         <button onClick={() => setActiveTab('gallery')} className={activeTab === 'gallery' ? 'active' : ''}><i className="fas fa-images"></i> Image Gallery</button>
-        {/* <button onClick={() => setActiveTab('collection')} className={activeTab === 'collection' ? 'active' : ''}><i className="fas fa-archive"></i> My Stories</button> */}
+        <button onClick={() => setActiveTab('collection')} className={activeTab === 'collection' ? 'active' : ''}><i className="fas fa-archive"></i> My Stories</button>
+        <button onClick={() => setActiveTab('files')} className={activeTab === 'files' ? 'active' : ''}><i className="fas fa-cloud-upload-alt"></i> API Files</button>
         <button onClick={() => setActiveTab('debug')} className={activeTab === 'debug' ? 'active' : ''}><i className="fas fa-terminal"></i> Debug Log</button>
         <button onClick={onRestart} className="start-over-button"><i className="fas fa-undo"></i> Start Over</button>
       </nav>
       <main className="webapp-content">
         {activeTab === 'storybook' && <StorybookView story={story} onImageClick={setSelectedImage} />}
         {activeTab === 'gallery' && <ImageGalleryView assets={assets} frames={frames} onImageClick={setSelectedImage} />}
-        {/* {activeTab === 'collection' && <StoryCollectionView onSelectStory={handleSelectStory} />} */}
+        {activeTab === 'collection' && <StoryCollectionView onSelectStory={handleSelectStory} />}
+        {activeTab === 'files' && <FilesApiView />}
         {activeTab === 'debug' && <>
           {generationMode !== 'full' && (
             <div className="detail-card debug-note-card">
               <h4><i className="fas fa-cogs"></i> Debug Mode Active</h4>
               <p>
                 Generation is currently set to <strong>{generationMode}</strong> mode. The process will stop early.
+              </p>
+            </div>
+          )}
+          { !isLoading && story && logFilename && (
+            <div className="detail-card log-link-card">
+              <h4><i className="fas fa-file-alt"></i> Generation Log</h4>
+              <p>
+                The full generation log has been saved. You can view it here: <a href={`/tmp/${logFilename}`} target="_blank" rel="noopener noreferrer">{logFilename}</a>
               </p>
             </div>
           )}

@@ -4,11 +4,11 @@ import 'dotenv/config';
 import express from 'express';
 import fs, { promises as fsp } from 'fs';
 import path from 'path';
-import { MODEL_GENERATE_IMAGE } from './config';
-import { StoredStory } from './interfaces';
-import { fileApiCache, handleImageApiResponse, saveContent, synchronizeStaticAssets } from './server/file-manager';
-import { generateFullBattlePlan } from './server/planner';
-import { lookupMime } from './utils';
+import { MODEL_GENERATE_IMAGE } from '../config';
+import { StoredStory } from '../interfaces';
+import { fileApiCache, handleImageApiResponse, saveContent, synchronizeStaticAssets } from './file-manager';
+import { generateFullBattlePlan } from './planner';
+import { lookupMime } from '../utils';
 
 const app = express();
 app.use(cors());
@@ -32,11 +32,9 @@ const ai = new GoogleGenAI({ apiKey });
 
 (async () => {
   try {
-    await synchronizeStaticAssets(console.log, ai, TMP_DIR);
+    await synchronizeStaticAssets(ai, TMP_DIR);
   } catch (error) {
-    const msg = `[File API] Failed to synchronize static assets on startup: ${error}`;
-    console.log(msg);
-    console.error(msg); // Keep error log for visibility
+    console.error('[File API] Failed to synchronize static assets on startup:', error);
   }
 })();
 
@@ -59,24 +57,12 @@ const imageSafetySettings = [{ category: HarmCategory.HARM_CATEGORY_HARASSMENT, 
  * On a cache miss, it calls the Gemini API sequentially for the base info, map details, and storyboard, respecting API rate limits.
  */
 app.post('/api/generate-full-plan', async (req, res) => {
-  res.setHeader('Content-Type', 'application/x-ndjson');
-  res.setHeader('Transfer-Encoding', 'chunked');
-
-  const log = (message: string) => {
-    console.log(message); // Keep server-side logging for debugging
-    res.write(JSON.stringify({ type: 'log', data: message }) + '\n');
-  };
-
   try {
-    const result = await generateFullBattlePlan(ai, fileApiCache, TMP_DIR, req.body, log);
-    res.write(JSON.stringify({ type: 'result', data: result }) + '\n');
-    res.end();
+    const result = await generateFullBattlePlan(ai, fileApiCache, TMP_DIR, req.body);
+    res.json(result);
   } catch (error: any) {
     console.error("Error in /api/generate-full-plan:", error);
-    if (!res.writableEnded) {
-      res.write(JSON.stringify({ type: 'error', data: { message: error.message } }) + '\n');
-      res.end();
-    }
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -300,79 +286,6 @@ app.get('/api/stories', async (req, res) => {
   } catch (error: any) {
     console.error("Error in /api/stories:", error);
     res.status(500).json({ error: error.message });
-  }
-});
-
-/**
- * @api {get} /api/files Get all files from Google AI API
- * @apiName GetFiles
- * @apiGroup File
- *
- * @apiSuccess {object[]} An array of file metadata objects from the Google AI File API.
- *
- * @apiDescription Lists all files currently stored in the associated Google Cloud project.
- */
-app.get('/api/files', async (req, res) => {
-  try {
-    const listResponse = await ai.files.list();
-    const files = [];
-    for await (const file of listResponse) {
-      files.push(file);
-    }
-    res.json(files);
-  } catch (error: any) {
-    console.error("Error listing files from Google AI API:", error);
-    res.status(500).json({ error: 'Failed to list files.' });
-  }
-});
-
-/**
- * @api {delete} /api/files/:id Delete a file from Google AI API
- * @apiName DeleteFile
- * @apiGroup File
- *
- * @apiParam {string} id The ID of the file to delete (e.g., 'xxxxxx').
- *
- * @apiSuccess {string} message Confirmation message.
- *
- * @apiDescription Deletes a specific file from the Google AI File API.
- */
-app.delete('/api/files/:id', async (req, res) => {
-  const { id } = req.params;
-  const fileName = `files/${id}`;
-  try {
-    await ai.files.delete({ name: fileName });
-    res.status(200).json({ message: `File ${fileName} deleted successfully.` });
-  } catch (error: any) {
-    console.error(`Error deleting file ${fileName} from Google AI API:`, error);
-    res.status(500).json({ error: `Failed to delete file ${fileName}.` });
-  }
-});
-
-/**
- * @api {delete} /api/stories/:id Delete a cached story
- * @apiName DeleteStory
- * @apiGroup Story
- *
- * @apiParam {string} id The story ID (hash) to delete.
- *
- * @apiSuccess {string} message Confirmation message.
- *
- * @apiDescription Deletes a specific cached story JSON file from the `/tmp` directory.
- */
-app.delete('/api/stories/:id', async (req, res) => {
-  const { id } = req.params;
-  // Basic sanitization to prevent path traversal
-  if (!id || id.includes('/') || id.includes('..')) {
-    return res.status(400).json({ error: 'Invalid story ID.' });
-  }
-  const storyPath = path.join(TMP_DIR, `${id}.json`);
-  try {
-    await fsp.unlink(storyPath);
-    res.status(200).json({ message: 'Story deleted successfully.' });
-  } catch (error: any) {
-    console.error(`Error deleting story ${id}:`, error);
-    res.status(error.code === 'ENOENT' ? 404 : 500).json({ error: 'Failed to delete story.' });
   }
 });
 

@@ -62,8 +62,8 @@ export async function generateFullBattlePlan(
 
   if (fs.existsSync(storyPath)) {
     const cachedStory = JSON.parse(await fsp.readFile(storyPath, 'utf-8'));
-    log(`[Cache] Hit for story hash: ${storyHash}`);
-    log(" -> Found cached story. Skipping generation.");
+    log(`[Cache] Hit for story hash: ${storyHash}.`);
+    log("[Cache] Found cached story. Skipping generation.");
     return { cached: true, story: cachedStory };
   }
 
@@ -72,16 +72,16 @@ export async function generateFullBattlePlan(
     ? [{ fileData: { mimeType: 'text/plain', fileUri: fileApiCache.get('placeholder_battle')! } }]
     : [{ text: inputText! }];
 
-  log(" -> Generating assets and battle identification...");
+  log("[Planner] Generating assets and battle identification...");
   const baseInfo = await generatePlanPart(ai, fileApiCache, 'base', contentParts, safetySettings);
   await sleep(PLAN_GENERATION_DELAY_MS);
-  log(" -> Generating map details...");
+  log("[Planner] Generating map details...");
   const mapsInfo = await generatePlanPart(ai, fileApiCache, 'maps', contentParts, safetySettings);
   await sleep(PLAN_GENERATION_DELAY_MS);
-  log(" -> Generating storyboard frames...");
+  log("[Planner] Generating storyboard frames...");
   const storyboardInfo = await generatePlanPart(ai, fileApiCache, 'storyboard', contentParts, safetySettings);
 
-  log(` -> New plan received. Ready for asset generation.`);
+  log(`[Planner] New plan received. Ready for asset generation.`);
   const battlePlan = { ...baseInfo, ...mapsInfo, ...storyboardInfo };
   return { cached: false, plan: battlePlan, storyHash };
 }

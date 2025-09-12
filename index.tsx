@@ -82,17 +82,14 @@ function App() {
     try {
       const finalStory = await lifecycleManager.generate(inputText);
       storyState.setFinalStory(finalStory);
-      storyState.addLog("Storyboard generation complete!");
       storyState.addLog("[App] Storyboard generation complete!");
       storyState.setProgress(1, 'Complete!');
     } catch (err: any) {
-      storyState.addLog(`FATAL ERROR: ${err.message}`);
       storyState.addLog(`[App] FATAL ERROR: ${err.message}`);
       console.error(err);
       storyState.setProgressText(`Error: ${err.message}`);
     } finally {
       storyState.setLoading(false);
-      storyState.addLog("Story generation finished.");
       storyState.addLog("[App] Story generation finished.");
       await saveLogFile();
     }

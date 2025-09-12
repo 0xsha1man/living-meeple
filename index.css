@@ -567,6 +567,16 @@ textarea::placeholder {
   /* max-height and overflow are handled by the parent .debug-log-view now */
 }
 
+.debug-log-view pre a {
+  color: var(--secondary-color);
+  text-decoration: underline;
+  font-weight: bold;
+}
+
+.debug-log-view pre a:hover {
+  color: var(--accent-color);
+}
+
 /* --- LIGHTBOX/MODAL --- */
 .lightbox-overlay {
   position: fixed;

@@ -48,11 +48,11 @@ export class StoryLifecycleManager {
    * @returns The result of the action.
    */
   private async runStep<T>(title: string, action: () => Promise<T>): Promise<T> {
-    storyState.addLog(`Starting: ${title}...`);
+    storyState.addLog(`[Lifecycle] Starting: ${title}...`);
     storyState.setProgressText(title);
     try {
       const result = await action();
-      storyState.addLog(`Completed: ${title}`);
+      storyState.addLog(`[Lifecycle] Completed: ${title}`);
       return result;
     } catch (error: any) {
       storyState.addLog(`ERROR in step "${title}": ${error.message}`);
@@ -75,23 +75,23 @@ export class StoryLifecycleManager {
     );
 
     if (cached && story) {
-      storyState.addLog("Finished loading cached story.");
+      storyState.addLog("[Lifecycle] Finished loading cached story.");
       storyState.setProgress(1, "Finished");
       return story;
     }
 
     this.totalSteps = this.calculateTotalSteps(battlePlan);
-    this.updateProgress(`Plan generated (${battlePlan.storyboard.length} frames)`);
+    this.updateProgress(`Plan generated (${battlePlan.storyboard.length} pages)`);
 
     if (APP_CONFIG.generationMode === 'plan-only') {
-      storyState.addLog("Generation stopped after creating BattlePlan (plan-only mode).");
+      storyState.addLog("[Lifecycle] Generation stopped after creating BattlePlan (plan-only mode).");
       return { id: storyHash || '', name: battlePlan.battle_identification.name, plan: battlePlan, assets: {}, frames: [] };
     }
 
     const assets = await this.generateAssets(battlePlan);
 
     if (APP_CONFIG.generationMode === 'assets-only') {
-      storyState.addLog("Generation stopped after creating base assets (assets-only mode).");
+      storyState.addLog("[Lifecycle] Generation stopped after creating base assets (assets-only mode).");
       return { id: storyHash || '', name: battlePlan.battle_identification.name, plan: battlePlan, assets, frames: [] };
     }
 

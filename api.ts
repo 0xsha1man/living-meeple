@@ -35,9 +35,9 @@ export const executeImageGeneration = async (prompt: string, caption: string): P
       }
       const { url, uri, mimeType, requestLog, responseLog } = await imageResponse.json();
       if (responseLog) {
-        storyState.addLog(` -> API logs saved to ${requestLog} and ${responseLog}`);
+        storyState.addLog(`[API] Logs saved to ${requestLog} and ${responseLog}`);
       } else {
-        storyState.addLog(` -> API request log saved to ${requestLog}`);
+        storyState.addLog(`[API] Request log saved to ${requestLog}`);
       }
       return { url, uri, mimeType, caption };
     } catch (error: any) {
@@ -45,7 +45,7 @@ export const executeImageGeneration = async (prompt: string, caption: string): P
       if (retries >= MAX_RETRIES) {
         throw new Error(`Failed to generate image asset (${caption}) after ${MAX_RETRIES} retries: ${error.message}`);
       }
-      storyState.addLog(` -> Attempt ${retries} failed for "${caption}". Retrying in ${RETRY_DELAY_MS / 1000}s...`);
+      storyState.addLog(`[API] Attempt ${retries} failed for "${caption}". Retrying in ${RETRY_DELAY_MS / 1000}s...`);
       await sleep(RETRY_DELAY_MS);
     }
   }
@@ -99,9 +99,9 @@ export const executeImageEdit = async (currentImage: GeneratedAsset, promptKey: 
       }
       const { url, uri, mimeType, requestLog, responseLog } = await editResponse.json();
       if (responseLog) {
-        storyState.addLog(` -> API logs saved to ${requestLog} and ${responseLog}`);
+        storyState.addLog(`[API] Logs saved to ${requestLog} and ${responseLog}`);
       } else {
-        storyState.addLog(` -> API request log saved to ${requestLog}`);
+        storyState.addLog(`[API] Request log saved to ${requestLog}`);
       }
       return { url, uri, mimeType, caption };
     } catch (error: any) {
@@ -109,7 +109,7 @@ export const executeImageEdit = async (currentImage: GeneratedAsset, promptKey: 
       if (retries >= MAX_RETRIES) {
         throw new Error(`Failed to generate frame step (${caption}) after ${MAX_RETRIES} retries: ${error.message}`);
       }
-      storyState.addLog(` -> Attempt ${retries} failed for "${caption}". Retrying in ${RETRY_DELAY_MS / 1000}s...`);
+      storyState.addLog(`[API] Attempt ${retries} failed for "${caption}". Retrying in ${RETRY_DELAY_MS / 1000}s...`);
       await sleep(RETRY_DELAY_MS);
     }
   }
@@ -127,7 +127,7 @@ export const generateBattlePlan = async (inputText: string): Promise<{ plan: Bat
   const isPlaceholder = inputText === BATTLE_PLACEHOLDER;
   const body = isPlaceholder ? { usePlaceholder: true } : { inputText };
 
-  storyState.addLog("Requesting battle plan from server...");
+  storyState.addLog("[API] Requesting battle plan from server...");
   const response = await fetch(`${API_BASE_URL}/api/generate-full-plan`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -197,7 +197,7 @@ export const generateBattlePlan = async (inputText: string): Promise<{ plan: Bat
  * @param story The final, complete StoredStory object, including all asset URLs.
  */
 export const cacheStory = async (storyHash: string, story: StoredStory): Promise<void> => {
-  storyState.addLog(`Caching story on server...`);
+  storyState.addLog(`[API] Caching story on server...`);
   const response = await fetch(`${API_BASE_URL}/api/cache-story`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -206,10 +206,10 @@ export const cacheStory = async (storyHash: string, story: StoredStory): Promise
 
   if (!response.ok) {
     const errorBody = await response.text();
-    storyState.addLog(` -> Failed to cache story: ${errorBody}`);
+    storyState.addLog(`[API] Failed to cache story: ${errorBody}`);
     // We don't throw here, as failing to cache is not a critical error for the user.
   } else {
-    storyState.addLog(` -> Story cached successfully.`);
+    storyState.addLog(`[API] Story cached successfully.`);
   }
 };
 
@@ -218,7 +218,7 @@ export const cacheStory = async (storyHash: string, story: StoredStory): Promise
  * @returns A promise that resolves to an array of `StoredStory` objects.
  */
 export const getStoryCollection = async (): Promise<StoredStory[]> => {
-  storyState.addLog("Fetching story collection...");
+  storyState.addLog("[API] Fetching story collection...");
   const response = await fetch(`${API_BASE_URL}/api/stories`);
 
   if (!response.ok) {
@@ -227,7 +227,7 @@ export const getStoryCollection = async (): Promise<StoredStory[]> => {
   }
 
   const stories = await response.json();
-  storyState.addLog(` -> Found ${stories.length} cached stories.`);
+  storyState.addLog(`[API] Found ${stories.length} cached stories.`);
   return stories;
 };
 
@@ -236,7 +236,7 @@ export const getStoryCollection = async (): Promise<StoredStory[]> => {
  * @param storyId The ID (hash) of the story to delete.
  */
 export const deleteStory = async (storyId: string): Promise<void> => {
-  storyState.addLog(`Deleting story ${storyId}...`);
+  storyState.addLog(`[API] Deleting story ${storyId}...`);
   const response = await fetch(`${API_BASE_URL}/api/stories/${storyId}`, {
     method: 'DELETE',
   });
@@ -244,7 +244,7 @@ export const deleteStory = async (storyId: string): Promise<void> => {
     const errorBody = await response.text();
     throw new Error(`Failed to delete story: ${errorBody}`);
   }
-  storyState.addLog(` -> Story ${storyId} deleted.`);
+  storyState.addLog(`[API] Story ${storyId} deleted.`);
 };
 
 /**
@@ -252,14 +252,14 @@ export const deleteStory = async (storyId: string): Promise<void> => {
  * @returns A promise that resolves to an array of file metadata objects.
  */
 export const getFiles = async (): Promise<any[]> => {
-  storyState.addLog("Fetching file list from Google AI API...");
+  storyState.addLog("[API] Fetching file list from Google AI API...");
   const response = await fetch(`${API_BASE_URL}/api/files`);
   if (!response.ok) {
     const errorBody = await response.text();
     throw new Error(`Failed to fetch files: ${errorBody}`);
   }
   const files = await response.json();
-  storyState.addLog(` -> Found ${files.length} files.`);
+  storyState.addLog(`[API] Found ${files.length} files.`);
   return files;
 };
 
@@ -268,7 +268,7 @@ export const getFiles = async (): Promise<any[]> => {
  * @param fileName The full name of the file (e.g., 'files/xxxxxx').
  */
 export const deleteFile = async (fileName: string): Promise<void> => {
-  storyState.addLog(`Deleting file ${fileName} from Google AI API...`);
+  storyState.addLog(`[API] Deleting file ${fileName} from Google AI API...`);
   // The file ID is the part after "files/"
   const fileId = fileName.split('/').pop();
   if (!fileId) {
@@ -281,5 +281,5 @@ export const deleteFile = async (fileName: string): Promise<void> => {
     const errorBody = await response.text();
     throw new Error(`Failed to delete file: ${errorBody}`);
   }
-  storyState.addLog(` -> File ${fileName} deleted.`);
+  storyState.addLog(`[API] File ${fileName} deleted.`);
 };

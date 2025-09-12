@@ -7,6 +7,10 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { MODEL_GENERATE_IMAGE, MODEL_GENERATE_PLAN } from './config';
+import { BATTLE_PLACEHOLDER } from './data/battle_placeholder';
+import { SYSTEM_INSTRUCTION_BASE } from './data/system_instruction_base';
+import { SYSTEM_INSTRUCTION_MAPS } from './data/system_instruction_maps';
+import { SYSTEM_INSTRUCTION_STORYBOARD } from './data/system_instruction_storyboard';
 
 const app = express();
 app.use(cors());
@@ -28,6 +32,57 @@ if (!apiKey) {
 }
 
 const ai = new GoogleGenAI({ apiKey });
+
+// --- New Files API Caching Logic ---
+const fileApiCache = new Map<string, string>();
+
+/**
+ * Uploads content to the Google AI File API if not already cached.
+ * @param key A unique key for the content.
+ * @param content The string content to upload.
+ * @param mimeType The mime type of the content.
+ * @returns The URI of the uploaded file.
+ */
+async function getOrUploadFile(key: string, content: string, mimeType: string): Promise<string> {
+  if (fileApiCache.has(key)) {
+    return fileApiCache.get(key)!;
+  }
+
+  console.log(`[File API] Uploading ${key}...`);
+  const tempFilePath = path.join(TMP_DIR, `${key}.txt`);
+  fs.writeFileSync(tempFilePath, content);
+
+  try {
+    const uploadResult = await ai.files.upload({
+        file: tempFilePath,
+        config: {
+            mimeType,
+            displayName: key,
+        }
+    });
+
+    if (!uploadResult.uri) {
+      throw new Error(`File API upload for ${key} did not return a URI.`);
+    }
+    fileApiCache.set(key, uploadResult.uri);
+    console.log(`[File API] ...uploaded ${key}, URI: ${uploadResult.uri}`);
+    return uploadResult.uri;
+  } finally {
+    fs.unlinkSync(tempFilePath);
+  }
+}
+
+(async () => {
+  try {
+    await Promise.all([getOrUploadFile('instruction_base', SYSTEM_INSTRUCTION_BASE, 'text/plain'), getOrUploadFile('instruction_maps', SYSTEM_INSTRUCTION_MAPS, 'text/plain'), getOrUploadFile('instruction_storyboard', SYSTEM_INSTRUCTION_STORYBOARD, 'text/plain'), getOrUploadFile('placeholder_battle', BATTLE_PLACEHOLDER, 'text/plain')]);
+    console.log('[File API] All static text assets uploaded and cached.');
+  } catch (error) {
+    console.error('[File API] Failed to upload static assets on startup:', error);
+    // In a real app, you might want to exit or have a retry mechanism.
+    // For this demo, we'll log the error and continue.
+  }
+})();
+// --- End New Logic ---
 
 const imageSafetySettings = [{ category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE }, { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE }, { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE }, { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }];
 
@@ -84,27 +139,40 @@ function lookupMime(filename: string): string {
 
 // Endpoint to generate the initial battle plan
 app.post('/api/generate-plan', async (req, res) => {
-    const { inputText, SYSTEM_INSTRUCTION, schema, safetySettings, partName } = req.body;
+    const { inputText, usePlaceholder, instructionKey, schema, safetySettings, partName } = req.body;
     try {
-        // TODO: Implement caching for system instructions to reduce token count and improve latency.
-        // This would involve:
-        // 1. Creating a unique key for each instruction/schema combination (e.g., a hash of the instruction string).
-        // 2. Checking if a `cachedContent` resource name exists for that key.
-        // 3. If not, creating one using `ai.caches.create()` and storing its name.
-        //    e.g., const cache = await ai.caches.create({ model: MODEL_GENERATE_PLAN, systemInstruction, tools: [{ functionDeclarations: [schema] }] });
-        // 4. On subsequent requests, using the stored `cachedContent.name` in the `generateContent` call
-        //    instead of passing the full `systemInstruction` and `schema` again.
-        //    e.g., const result = await ai.models.generateContent({ model: MODEL_GENERATE_PLAN, cachedContent: cache.name, ... })
         const requestLog = saveContent(JSON.stringify(req.body, null, 2), 'json');
+
+        const instructionUri = fileApiCache.get(`instruction_${instructionKey}`);
+        if (!instructionUri) {
+          return res.status(500).json({ error: `System instruction for key "${instructionKey}" not found in cache. The server may still be starting up.` });
+        }
+
+        const systemInstruction = {
+          parts: [{ fileData: { mimeType: 'text/plain', fileUri: instructionUri } }]
+        };
+
+        let contentParts: Part[];
+        if (usePlaceholder) {
+          const placeholderUri = fileApiCache.get('placeholder_battle');
+          if (!placeholderUri) {
+            return res.status(500).json({ error: `Placeholder battle text not found in cache. The server may still be starting up.` });
+          }
+          contentParts = [{ fileData: { mimeType: 'text/plain', fileUri: placeholderUri } }];
+        } else {
+          contentParts = [{ text: inputText }];
+        }
+
         const result = await ai.models.generateContent({
             model: MODEL_GENERATE_PLAN,
-            contents: [{ parts: [{ text: inputText }] }],
-            config: { systemInstruction: SYSTEM_INSTRUCTION, responseMimeType: 'application/json', responseSchema: schema, safetySettings },
+            contents: [{ parts: contentParts }],
+            config: { systemInstruction, responseMimeType: 'application/json', responseSchema: schema, safetySettings },
         });
 
         // **GUARD CLAUSE**
         if (!result.text) {
-            throw new Error("Invalid or empty plan received from the API.");
+            const responseLog = saveContent(JSON.stringify(result, null, 2), 'json');
+            throw new Error(`Invalid or empty plan received from the API. Full API response saved to /tmp/${responseLog}`);
         }
         const responseLog = saveContent(result.text, 'json');
         res.json({ ...JSON.parse(result.text), requestLog, responseLog });
@@ -121,7 +189,7 @@ app.post('/api/generate-image', async (req, res) => {
     try {
         const result = await ai.models.generateContent({
             model: MODEL_GENERATE_IMAGE,
-            contents: prompt,
+            contents: [{ parts: [{ text: prompt }] }],
             config: { safetySettings: imageSafetySettings },
         });
 

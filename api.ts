@@ -1,7 +1,5 @@
 import { HarmBlockThreshold, HarmCategory } from '@google/genai';
-import { SYSTEM_INSTRUCTION_BASE } from './data/system_instruction_base';
-import { SYSTEM_INSTRUCTION_MAPS } from './data/system_instruction_maps';
-import { SYSTEM_INSTRUCTION_STORYBOARD } from './data/system_instruction_storyboard';
+import { BATTLE_PLACEHOLDER } from './data/battle_placeholder';
 import { BattleIdentification, BattlePlan, Faction, GeneratedAsset, MapAsset, StoryboardFrame } from './interfaces';
 import { base_schema } from './schema/base_schema';
 import { maps_schema } from './schema/maps_schema';
@@ -131,11 +129,11 @@ export const executeImageEdit = async (currentImage: GeneratedAsset, prompt: str
  * @param context Optional additional context to prepend to the system instruction. This is used to pass information from one planning step to the next.
  * @returns A promise that resolves to the parsed JSON part of the plan.
  */
-const generatePlanPart = async (inputText: string, instruction: string, schema: any, partName: string) => {
+const generatePlanPart = async (textPayload: { inputText: string } | { usePlaceholder: true }, instructionKey: 'base' | 'maps' | 'storyboard', schema: any, partName: string) => {
   const response = await fetch(`${API_BASE_URL}/api/generate-plan`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ inputText, SYSTEM_INSTRUCTION: instruction, schema, safetySettings, partName }),
+    body: JSON.stringify({ ...textPayload, instructionKey, schema, safetySettings, partName }),
   });
   storyState.addLog(`Plan part generation for '${partName}' response status: ${response.status}`);
   if (!response.ok) {
@@ -158,8 +156,13 @@ const generatePlanPart = async (inputText: string, instruction: string, schema: 
  * @returns A promise that resolves to the complete, assembled `BattlePlan`.
  */
 export const generateBattlePlan = async (inputText: string): Promise<BattlePlan> => {
+  const isPlaceholder = inputText === BATTLE_PLACEHOLDER;
+  const textPayload: { inputText: string } | { usePlaceholder: true } = isPlaceholder
+    ? { usePlaceholder: true }
+    : { inputText };
+
   storyState.addLog("Step 1: Generating base battle plan...");
-  const baseInfo: { battle_identification: BattleIdentification, factions: Faction[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_BASE, base_schema, 'base-info');
+  const baseInfo: { battle_identification: BattleIdentification, factions: Faction[] } = await generatePlanPart(textPayload, 'base', base_schema, 'base-info');
   storyState.addLog(` -> Received Battle ID: ${baseInfo.battle_identification.name}`);
   storyState.addLog(` -> Received Factions: ${baseInfo.factions.map(f => f.name).join(', ')}`);
 
@@ -167,16 +170,14 @@ export const generateBattlePlan = async (inputText: string): Promise<BattlePlan>
   await sleep(PLAN_GENERATION_DELAY_MS);
 
   storyState.addLog("Step 2: Generating map details...");
-  // The map generator is now expected to derive all context from the full user text.
-  const mapsInfo: { maps: MapAsset[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_MAPS, maps_schema, 'maps');
+  const mapsInfo: { maps: MapAsset[] } = await generatePlanPart(textPayload, 'maps', maps_schema, 'maps');
   storyState.addLog(` -> Received ${mapsInfo.maps.length} map definitions.`);
 
   storyState.addLog(`Waiting ${PLAN_GENERATION_DELAY_MS / 1000}s before next step...`);
   await sleep(PLAN_GENERATION_DELAY_MS);
 
   storyState.addLog("Step 3: Generating storyboard frames...");
-  // The storyboard generator is given the full, original text to extract all key moments for the frames.
-  const storyboardInfo: { storyboard: StoryboardFrame[] } = await generatePlanPart(inputText, SYSTEM_INSTRUCTION_STORYBOARD, storyboard_schema, 'storyboard');
+  const storyboardInfo: { storyboard: StoryboardFrame[] } = await generatePlanPart(textPayload, 'storyboard', storyboard_schema, 'storyboard');
   storyState.addLog(` -> Received ${storyboardInfo.storyboard.length} storyboard frames.`);
 
   const battlePlan: BattlePlan = { ...baseInfo, ...mapsInfo, ...storyboardInfo };

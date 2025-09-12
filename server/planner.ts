@@ -72,16 +72,16 @@ export async function generateFullBattlePlan(
     ? [{ fileData: { mimeType: 'text/plain', fileUri: fileApiCache.get('placeholder_battle')! } }]
     : [{ text: inputText! }];
 
-  log("[Planner] Generating assets and battle identification...");
+  log("[Analyst] Generating assets and battle identification...");
   const baseInfo = await generatePlanPart(ai, fileApiCache, 'base', contentParts, safetySettings);
   await sleep(PLAN_GENERATION_DELAY_MS);
-  log("[Planner] Generating map details...");
+  log("[Analyst] Generating map details...");
   const mapsInfo = await generatePlanPart(ai, fileApiCache, 'maps', contentParts, safetySettings);
   await sleep(PLAN_GENERATION_DELAY_MS);
-  log("[Planner] Generating storyboard frames...");
+  log("[Analyst] Generating storyboard frames...");
   const storyboardInfo = await generatePlanPart(ai, fileApiCache, 'storyboard', contentParts, safetySettings);
 
-  log(`[Planner] New plan received. Ready for asset generation.`);
+  log(`[Analyst] New plan received. Ready for asset generation.`);
   const battlePlan = { ...baseInfo, ...mapsInfo, ...storyboardInfo };
   return { cached: false, plan: battlePlan, storyHash };
 }

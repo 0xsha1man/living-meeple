@@ -25,8 +25,6 @@ This project was built for the **Kaggle Nano-Banana Competition**, leveraging Go
 ### How It Works
 
 The process is analogous to a movie production pipeline, with different AI models playing specialized roles:
-1.  **The Analyst (Gemini 2.0 Flash)**: You paste in a historical text. The `gemini-2.0-flash` model acts as the Analyst, reading the text and deconstructing it into a detailed `BattlePlan` in JSON format. This structured plan is the blueprint for the visual story, defining every faction, asset, and action required for each frame.
-
 1.  **The Analyst (Gemini 2.0 Flash)**: You paste in a historical text. The `gemini-2.0-flash-lite` model acts as the Analyst, reading the text and deconstructing it into a detailed `BattlePlan` in JSON format. This structured plan is the blueprint for the visual story, defining every faction, asset, and action required for each frame.
 
 2.  **The Cartographer (Gemini 2.5 Flash Image Preview)**: The application then acts as the Cartographer, using the `gemini-2.5-flash-image-preview` model's image generation capabilities to create a consistent set of assets. This is where the Nano-Banana model's power shines:
@@ -48,6 +46,13 @@ The primary challenge in any multi-image AI project is maintaining visual consis
 A second, practical challenge was working within the API's free-tier rate limits (e.g., 10 requests per minute for the image model, 30 RPM for the text model). Our layered approach, while powerful, makes many sequential API calls. To solve this, we engineered a deliberate delay between each request, pacing the application to respect the API quotas. This highlights a real-world engineering consideration when building production-ready AI applications.
 
 This project underscored the power of treating the AI not as a one-shot creator, but as a tool to be guided through a structured, layered workflow that respects both creative and technical constraints.
+
+## Update Log
+
+### 2025-09-12
+
+*   **Refactored Server-Side Logging**: Implemented a real-time, event-based streaming log for the debug view. This replaces the previous approach of sending all logs at once, providing accurate timestamps for each step of the generation process and a much-improved debugging experience.
+*   **Static Asset Caching via Files API**: Major refactor to leverage the Google AI Files API for caching static text assets (like system instructions and prompt templates). On startup, the server now uploads these assets to the Files API and reuses their URIs in subsequent calls. This significantly reduces token count and API costs by avoiding the need to send the same large text blocks repeatedly.
 
 ## For Local Developers
 
@@ -113,7 +118,6 @@ This allows you to trace the entire generation process, inspect the data at each
 *   **Frontend**: React, TypeScript
 *   **Backend**: Node.js, Express
 *   **AI Planning Model**: Google Gemini 2.0 Flash (`gemini-2.0-flash-lite`)
-*   **AI Planning Model**: Google Gemini 2.0 Flash (`gemini-2.0-flash`)
 *   **AI Image Generation & Editing Model**: Google Gemini 2.5 Flash Image Preview (`gemini-2.5-flash-image-preview`)
 *   **Future Work**: Integration with ElevenLabs for AI-powered audio narration of the story.
 
